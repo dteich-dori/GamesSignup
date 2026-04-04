@@ -18,7 +18,15 @@ export async function GET() {
   } catch (error) {
     console.error("Settings GET error:", error);
     return NextResponse.json(
-      { error: String(error), message: (error as Error).message },
+      {
+        error: String(error),
+        message: (error as Error).message,
+        envCheck: {
+          hasUrl: !!process.env.TURSO_DATABASE_URL,
+          urlPrefix: process.env.TURSO_DATABASE_URL?.substring(0, 15),
+          hasToken: !!process.env.TURSO_AUTH_TOKEN,
+        },
+      },
       { status: 500 }
     );
   }
