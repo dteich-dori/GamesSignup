@@ -56,6 +56,7 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [editingTimeKey, setEditingTimeKey] = useState<string | null>(null);
   const [editingTimeValue, setEditingTimeValue] = useState("");
+  const [recentlyJoined, setRecentlyJoined] = useState<Set<number>>(new Set());
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
@@ -135,6 +136,15 @@ export default function Home() {
       const err = await res.json();
       return alert(err.error);
     }
+    // Flash highlight then clear after 2 seconds
+    setRecentlyJoined((prev) => new Set(prev).add(gameSlotId));
+    setTimeout(() => {
+      setRecentlyJoined((prev) => {
+        const next = new Set(prev);
+        next.delete(gameSlotId);
+        return next;
+      });
+    }, 2000);
     fetchGameSlots();
   };
 
@@ -495,8 +505,10 @@ export default function Home() {
                           {signup ? (
                             <div
                               className={`px-0.5 py-1 text-sm font-bold leading-tight truncate ${
-                                isThisMe
-                                  ? "bg-primary text-white cursor-pointer"
+                                isThisMe && recentlyJoined.has(slot.id)
+                                  ? "bg-primary text-white"
+                                  : isThisMe
+                                  ? "text-primary cursor-pointer underline"
                                   : "text-foreground"
                               }`}
                               onClick={() => {
