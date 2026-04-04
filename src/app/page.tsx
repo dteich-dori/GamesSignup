@@ -60,6 +60,7 @@ export default function Home() {
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
+  const [dateOffset, setDateOffset] = useState(0);
 
   const fetchPlayers = useCallback(async () => {
     const res = await fetch("/api/players");
@@ -68,10 +69,13 @@ export default function Home() {
   }, []);
 
   const fetchGameSlots = useCallback(async () => {
-    const res = await fetch("/api/game-slots?generate=true");
+    const from = new Date();
+    from.setDate(from.getDate() + dateOffset);
+    const fromStr = from.toISOString().split("T")[0];
+    const res = await fetch(`/api/game-slots?generate=true&from=${fromStr}`);
     const data = await res.json();
     setGameSlots(data);
-  }, []);
+  }, [dateOffset]);
 
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
@@ -273,27 +277,35 @@ export default function Home() {
           </div>
         </div>
 
-        <select
-          value={selectedPlayerId || ""}
-          onChange={(e) => {
-            // Always clear admin role when player changes
-            sessionStorage.removeItem("setupRole");
-            setShowPinPrompt(false);
-            setPinInput("");
-            setPinError("");
-            window.dispatchEvent(new Event("storage"));
-            // Force re-trigger by clearing first, then setting new value
-            const newId = e.target.value ? Number(e.target.value) : null;
-            setSelectedPlayerId(null);
-            setTimeout(() => setSelectedPlayerId(newId), 0);
-          }}
-          className="w-full p-2.5 rounded-lg border border-border bg-card text-base"
-        >
-          <option value="">— Select your name —</option>
-          {players.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedPlayerId || ""}
+            onChange={(e) => {
+              // Always clear admin role when player changes
+              sessionStorage.removeItem("setupRole");
+              setShowPinPrompt(false);
+              setPinInput("");
+              setPinError("");
+              window.dispatchEvent(new Event("storage"));
+              // Force re-trigger by clearing first, then setting new value
+              const newId = e.target.value ? Number(e.target.value) : null;
+              setSelectedPlayerId(null);
+              setTimeout(() => setSelectedPlayerId(newId), 0);
+            }}
+            className="w-48 p-2.5 rounded-lg border border-border bg-card text-base"
+          >
+            <option value="">— Select name —</option>
+            {players.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setDateOffset((prev) => prev + 1)}
+            className="px-3 py-2.5 bg-primary text-white rounded-lg text-sm font-medium whitespace-nowrap"
+          >
+            Shift Games
+          </button>
+        </div>
       </header>
 
       {/* PIN prompt for admin players */}
