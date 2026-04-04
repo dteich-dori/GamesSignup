@@ -134,19 +134,18 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { date, timeSlot } = body;
+  const { id, timeSlot } = body;
 
-  if (!date || !timeSlot) {
-    return NextResponse.json({ error: "Date and timeSlot are required" }, { status: 400 });
+  if (!id || !timeSlot) {
+    return NextResponse.json({ error: "id and timeSlot are required" }, { status: 400 });
   }
 
   const database = await db();
 
-  // Update all game slots for the given date
-  const updated = await database
+  const [updated] = await database
     .update(gameSlots)
     .set({ timeSlot })
-    .where(eq(gameSlots.date, date))
+    .where(eq(gameSlots.id, id))
     .returning();
 
   return NextResponse.json(updated);

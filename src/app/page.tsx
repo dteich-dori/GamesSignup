@@ -50,7 +50,7 @@ export default function Home() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [editingTimeDate, setEditingTimeDate] = useState<string | null>(null);
+  const [editingTimeKey, setEditingTimeKey] = useState<string | null>(null);
   const [editingTimeValue, setEditingTimeValue] = useState("");
 
   const fetchPlayers = useCallback(async () => {
@@ -134,14 +134,14 @@ export default function Home() {
     fetchNotifications();
   };
 
-  const handleTimeChange = async (date: string, newTime: string) => {
+  const handleTimeChange = async (slotId: number, newTime: string) => {
     if (!newTime.trim()) return;
     await fetch("/api/game-slots", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, timeSlot: newTime.trim() }),
+      body: JSON.stringify({ id: slotId, timeSlot: newTime.trim() }),
     });
-    setEditingTimeDate(null);
+    setEditingTimeKey(null);
     fetchGameSlots();
   };
 
@@ -279,43 +279,6 @@ export default function Home() {
                 );
               })}
             </tr>
-            <tr>
-              <td className="border border-border p-1 text-xs font-bold text-foreground">Time</td>
-              {dates.map((d) => {
-                const slot = slotMap.get(`${d}-${courtNumbers[0]}`);
-                const timeValue = slot?.timeSlot || settings?.defaultTimeSlot || "";
-                const isEditing = editingTimeDate === d;
-                return (
-                  <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editingTimeValue}
-                        onChange={(e) => setEditingTimeValue(e.target.value)}
-                        onBlur={() => handleTimeChange(d, editingTimeValue)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleTimeChange(d, editingTimeValue);
-                          if (e.key === "Escape") setEditingTimeDate(null);
-                        }}
-                        autoFocus
-                        className="w-full text-xs text-center font-semibold p-1 border-0 outline-none bg-blue-50"
-                      />
-                    ) : (
-                      <div
-                        onClick={() => {
-                          setEditingTimeDate(d);
-                          setEditingTimeValue(timeValue);
-                        }}
-                        className="p-1 cursor-pointer hover:bg-blue-50 transition-colors"
-                        title="Click to change time"
-                      >
-                        {timeValue}
-                      </div>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
           </thead>
 
             {courtNumbers.map((courtNum, courtIdx) => (
@@ -325,6 +288,46 @@ export default function Home() {
                   <td className="border border-border p-1 text-sm font-extrabold text-center text-foreground" colSpan={dates.length + 1}>
                     Game {courtNum}
                   </td>
+                </tr>
+
+                {/* Per-court time row */}
+                <tr>
+                  <td className="border border-border p-1 text-xs font-bold text-foreground">Time</td>
+                  {dates.map((d) => {
+                    const slot = slotMap.get(`${d}-${courtNum}`);
+                    const timeValue = slot?.timeSlot || settings?.defaultTimeSlot || "";
+                    const key = `${d}-${courtNum}`;
+                    const isEditing = editingTimeKey === key;
+                    return (
+                      <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
+                        {isEditing && slot ? (
+                          <input
+                            type="text"
+                            value={editingTimeValue}
+                            onChange={(e) => setEditingTimeValue(e.target.value)}
+                            onBlur={() => handleTimeChange(slot.id, editingTimeValue)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleTimeChange(slot.id, editingTimeValue);
+                              if (e.key === "Escape") setEditingTimeKey(null);
+                            }}
+                            autoFocus
+                            className="w-full text-xs text-center font-semibold p-1 border-0 outline-none bg-blue-50"
+                          />
+                        ) : (
+                          <div
+                            onClick={() => {
+                              setEditingTimeKey(key);
+                              setEditingTimeValue(timeValue);
+                            }}
+                            className="p-1 cursor-pointer hover:bg-blue-50 transition-colors"
+                            title="Click to change time"
+                          >
+                            {timeValue}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
 
                 {/* Player slot rows */}
@@ -386,30 +389,6 @@ export default function Home() {
                     })}
                   </tr>
                 ))}
-
-                {/* Status row */}
-                <tr key={`status-${courtNum}`}>
-                  <td className="border border-border p-1 text-xs text-center text-foreground font-bold">
-                    {/* empty label */}
-                  </td>
-                  {dates.map((d) => {
-                    const slot = slotMap.get(`${d}-${courtNum}`);
-                    if (!slot) {
-                      return <td key={d} className="border-l-2 border-r-2 border-b-2 border-gray-400 border-t border-border p-0" />;
-                    }
-                    const isFull = slot.signups.length >= slot.maxPlayers;
-                    const count = slot.signups.length;
-                    return (
-                      <td key={d} className={`border-l-2 border-r-2 border-b-2 border-gray-400 border-t border-border p-1 text-xs text-center font-extrabold ${
-                        isFull ? "bg-success text-white" :
-                        count > 0 ? "text-warning" :
-                        "text-muted"
-                      }`}>
-                        {isFull ? "FULL" : count > 0 ? `${count}/${slot.maxPlayers}` : ""}
-                      </td>
-                    );
-                  })}
-                </tr>
 
                 {/* Spacer between courts */}
                 {courtIdx < courtNumbers.length - 1 && (
