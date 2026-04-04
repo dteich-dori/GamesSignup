@@ -408,7 +408,7 @@ export default function Home() {
                     const slot = slotMap.get(`${d}-${courtNum}`);
                     const isReserved = !!slot?.reservedCourt;
                     return (
-                      <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-center bg-gray-50">
+                      <td key={d} className="border-l-2 border-r-2 border-t-2 border-gray-400 border-b border-border p-0 text-center bg-gray-50">
                         {slot && (
                           <div className="flex items-center justify-center gap-1 px-1 py-1.5">
                             <input
@@ -489,8 +489,9 @@ export default function Home() {
                     </td>
                     {dates.map((d) => {
                       const slot = slotMap.get(`${d}-${courtNum}`);
+                      const isLastRow = playerIdx === maxPlayers - 1;
                       if (!slot) {
-                        return <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 bg-gray-50" />;
+                        return <td key={d} className={`border-l-2 border-r-2 border-gray-400 border-t border-b border-border ${isLastRow ? "border-b-2" : ""} p-0 bg-gray-50`} />;
                       }
 
                       const signup = slot.signups[playerIdx];
@@ -504,7 +505,7 @@ export default function Home() {
                       return (
                         <td
                           key={d}
-                          className={`border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-center ${
+                          className={`border-l-2 border-r-2 border-gray-400 border-t border-b border-border ${isLastRow ? "border-b-2" : ""} p-0 text-center ${
                             datePast ? "bg-gray-100 opacity-60" :
                             isFull ? "bg-success-bg/40" :
                             ""
