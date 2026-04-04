@@ -351,7 +351,7 @@ export default function SetupPage() {
               value={newPlayerEmail}
               onChange={(e) => setNewPlayerEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
-              placeholder="Email (optional)"
+              placeholder="Email"
               className="flex-1 p-2 rounded-lg border border-border"
             />
             <button
