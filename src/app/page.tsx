@@ -40,6 +40,8 @@ interface Settings {
   courtsAvailable: number;
   defaultTimeSlot: string;
   playersPerGame: number;
+  creatorPlayerId: number | null;
+  maintainerPlayerId: number | null;
 }
 
 export default function Home() {
@@ -52,6 +54,9 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [editingTimeKey, setEditingTimeKey] = useState<string | null>(null);
   const [editingTimeValue, setEditingTimeValue] = useState("");
+  const [showPinPrompt, setShowPinPrompt] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
 
   const fetchPlayers = useCallback(async () => {
     const res = await fetch("/api/players");
@@ -88,8 +93,33 @@ export default function Home() {
     if (selectedPlayerId) {
       localStorage.setItem("selectedPlayerId", String(selectedPlayerId));
       fetchNotifications();
+
+      // Check if this player is an admin
+      const isAdmin =
+        selectedPlayerId === settings?.creatorPlayerId ||
+        selectedPlayerId === settings?.maintainerPlayerId;
+
+      if (isAdmin) {
+        // Show PIN prompt if not already authenticated
+        const currentRole = sessionStorage.getItem("setupRole");
+        if (!currentRole) {
+          setShowPinPrompt(true);
+          setPinInput("");
+          setPinError("");
+        }
+      } else {
+        // Clear admin role when switching to non-admin player
+        sessionStorage.removeItem("setupRole");
+        setShowPinPrompt(false);
+        // Trigger nav update via storage event
+        window.dispatchEvent(new Event("storage"));
+      }
+    } else {
+      sessionStorage.removeItem("setupRole");
+      setShowPinPrompt(false);
+      window.dispatchEvent(new Event("storage"));
     }
-  }, [selectedPlayerId, fetchNotifications]);
+  }, [selectedPlayerId, settings, fetchNotifications]);
 
   useEffect(() => {
     const interval = setInterval(fetchGameSlots, 30000);
@@ -132,6 +162,24 @@ export default function Home() {
       body: JSON.stringify({ id, read: true }),
     });
     fetchNotifications();
+  };
+
+  const handlePinSubmit = async () => {
+    setPinError("");
+    const res = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: pinInput, playerId: selectedPlayerId }),
+    });
+    if (!res.ok) {
+      setPinError("Invalid PIN");
+      return;
+    }
+    const data = await res.json();
+    sessionStorage.setItem("setupRole", data.role);
+    setShowPinPrompt(false);
+    setPinInput("");
+    window.dispatchEvent(new Event("storage"));
   };
 
   const handleTimeChange = async (slotId: number, newTime: string) => {
@@ -219,6 +267,37 @@ export default function Home() {
           ))}
         </select>
       </header>
+
+      {/* PIN prompt for admin players */}
+      {showPinPrompt && (
+        <div className="mx-4 mt-2 border border-border rounded-lg bg-card p-4">
+          <div className="text-sm font-medium mb-2">Enter your PIN to access admin features:</div>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
+              placeholder="PIN"
+              autoFocus
+              className="flex-1 p-2 rounded-lg border border-border text-base"
+            />
+            <button
+              onClick={handlePinSubmit}
+              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium"
+            >
+              OK
+            </button>
+            <button
+              onClick={() => { setShowPinPrompt(false); setPinInput(""); }}
+              className="px-4 py-2 bg-gray-200 text-foreground rounded-lg text-sm font-medium"
+            >
+              Skip
+            </button>
+          </div>
+          {pinError && <div className="text-danger text-sm mt-1">{pinError}</div>}
+        </div>
+      )}
 
       {/* Notifications panel */}
       {showNotifications && (

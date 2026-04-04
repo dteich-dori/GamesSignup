@@ -3,11 +3,7 @@ import { db } from "@/db/getDb";
 import { settings } from "@/db/schema";
 
 export async function POST(request: NextRequest) {
-  const { pin } = await request.json();
-
-  if (!pin) {
-    return NextResponse.json({ error: "PIN required" }, { status: 400 });
-  }
+  const { pin, playerId } = await request.json();
 
   const database = await db();
   const rows = await database.select().from(settings);
@@ -23,11 +19,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ role: "creator", firstTime: true });
   }
 
-  if (pin === s.creatorPin) {
-    return NextResponse.json({ role: "creator" });
+  // Check if this player is an admin
+  if (playerId && !pin) {
+    // Just checking if player is admin (no PIN yet)
+    if (playerId === s.creatorPlayerId || playerId === s.maintainerPlayerId) {
+      return NextResponse.json({ isAdmin: true });
+    }
+    return NextResponse.json({ isAdmin: false });
   }
 
-  if (pin === s.maintainerPin) {
+  // Validate PIN for a specific player
+  if (playerId && pin) {
+    if (playerId === s.creatorPlayerId && pin === s.creatorPin) {
+      return NextResponse.json({ role: "creator" });
+    }
+    if (playerId === s.maintainerPlayerId && pin === s.maintainerPin) {
+      return NextResponse.json({ role: "maintainer" });
+    }
+    return NextResponse.json({ error: "Invalid PIN" }, { status: 401 });
+  }
+
+  // Legacy: PIN-only auth (for setup page direct access)
+  if (pin === s.creatorPin && s.creatorPin) {
+    return NextResponse.json({ role: "creator" });
+  }
+  if (pin === s.maintainerPin && s.maintainerPin) {
     return NextResponse.json({ role: "maintainer" });
   }
 

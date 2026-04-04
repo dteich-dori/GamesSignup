@@ -30,7 +30,8 @@ export async function PUT(request: NextRequest) {
   const allowedFields = [
     "clubName", "courtsAvailable", "defaultTimeSlot", "playersPerGame",
     "daysAhead", "reservationCutoffHours", "reminderTime",
-    "creatorPin", "maintainerPin", "errorReportEmail",
+    "creatorPlayerId", "creatorPin", "maintainerPlayerId", "maintainerPin",
+    "errorReportEmail",
   ];
 
   for (const field of allowedFields) {

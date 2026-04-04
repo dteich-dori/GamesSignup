@@ -16,10 +16,14 @@ export function Nav() {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
-    setRole(sessionStorage.getItem("setupRole"));
+    const checkRole = () => setRole(sessionStorage.getItem("setupRole"));
+    checkRole();
+    // Listen for manual storage events (dispatched from home page)
+    window.addEventListener("storage", checkRole);
+    return () => window.removeEventListener("storage", checkRole);
   }, []);
 
-  // Also re-check when navigating (e.g. after logging in on setup page)
+  // Also re-check when navigating
   useEffect(() => {
     setRole(sessionStorage.getItem("setupRole"));
   }, [pathname]);

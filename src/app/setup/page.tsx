@@ -12,7 +12,9 @@ interface Settings {
   daysAhead: number;
   reservationCutoffHours: number;
   reminderTime: string;
+  creatorPlayerId: number | null;
   creatorPin: string;
+  maintainerPlayerId: number | null;
   maintainerPin: string;
   errorReportEmail: string | null;
 }
@@ -311,11 +313,24 @@ export default function SetupPage() {
             </div>
           </div>
 
-          {/* PIN management — Creator only */}
+          {/* Admin assignment — Creator only */}
           {role === "creator" && (
             <div className="border-t border-border pt-4 mt-4">
-              <h3 className="font-semibold mb-3">PIN Management</h3>
+              <h3 className="font-semibold mb-3">Admin Assignment</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Creator Player</label>
+                  <select
+                    value={settings.creatorPlayerId ?? ""}
+                    onChange={(e) => setSettings({ ...settings, creatorPlayerId: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full p-2 rounded-lg border border-border"
+                  >
+                    <option value="">— None —</option>
+                    {players.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Creator PIN</label>
                   <input
@@ -324,6 +339,19 @@ export default function SetupPage() {
                     onChange={(e) => setSettings({ ...settings, creatorPin: e.target.value })}
                     className="w-full p-2 rounded-lg border border-border"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Maintainer Player</label>
+                  <select
+                    value={settings.maintainerPlayerId ?? ""}
+                    onChange={(e) => setSettings({ ...settings, maintainerPlayerId: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full p-2 rounded-lg border border-border"
+                  >
+                    <option value="">— None —</option>
+                    {players.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Maintainer PIN</label>

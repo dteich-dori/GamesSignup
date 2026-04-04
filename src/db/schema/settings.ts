@@ -9,7 +9,9 @@ export const settings = sqliteTable("settings", {
   daysAhead: integer("days_ahead").notNull().default(10),
   reservationCutoffHours: integer("reservation_cutoff_hours").notNull().default(24),
   reminderTime: text("reminder_time").notNull().default("18:00"),
+  creatorPlayerId: integer("creator_player_id"),
   creatorPin: text("creator_pin").notNull().default(""),
+  maintainerPlayerId: integer("maintainer_player_id"),
   maintainerPin: text("maintainer_pin").notNull().default(""),
   errorReportEmail: text("error_report_email"),
 });
