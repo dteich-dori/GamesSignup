@@ -582,6 +582,13 @@ export default function Home() {
           <p className="text-sm">Go to <Link href="/setup" className="text-primary underline">Setup</Link> to configure courts and generate game slots.</p>
         </div>
       )}
+
+      {/* Add to Home Screen instructions */}
+      <div className="border-t border-border px-4 py-3 mt-4 text-xs text-muted">
+        <p className="font-semibold text-foreground mb-1">Add to your phone&apos;s home screen:</p>
+        <p><strong>iPhone:</strong> Open in Safari &rarr; tap Share &rarr; &quot;Add to Home Screen&quot;</p>
+        <p><strong>Android:</strong> Open in Chrome &rarr; tap &#8942; menu &rarr; &quot;Add to Home Screen&quot;</p>
+      </div>
     </div>
   );
 }
