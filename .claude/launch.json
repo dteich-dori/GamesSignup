@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "/Users/doriteich/.nvm/versions/node/v24.13.0/bin/node",
-      "runtimeArgs": ["/Users/doriteich/GamesSignup/node_modules/next/dist/bin/next", "dev", "-p", "3001"],
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "cd /Users/doriteich/GamesSignup && /Users/doriteich/.nvm/versions/node/v24.13.0/bin/npx next dev -p 3001"],
       "port": 3001
     }
   ]

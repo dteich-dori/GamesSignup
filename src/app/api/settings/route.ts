@@ -4,16 +4,24 @@ import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
-  const database = await db();
-  const rows = await database.select().from(settings);
+  try {
+    const database = await db();
+    const rows = await database.select().from(settings);
 
-  if (rows.length === 0) {
-    // Initialize default settings
-    const [created] = await database.insert(settings).values({}).returning();
-    return NextResponse.json(created);
+    if (rows.length === 0) {
+      // Initialize default settings
+      const [created] = await database.insert(settings).values({}).returning();
+      return NextResponse.json(created);
+    }
+
+    return NextResponse.json(rows[0]);
+  } catch (error) {
+    console.error("Settings GET error:", error);
+    return NextResponse.json(
+      { error: String(error), message: (error as Error).message },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json(rows[0]);
 }
 
 export async function PUT(request: NextRequest) {
