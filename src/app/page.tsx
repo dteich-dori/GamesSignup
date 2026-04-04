@@ -89,37 +89,33 @@ export default function Home() {
     Promise.all([fetchPlayers(), fetchGameSlots(), fetchSettings()]).then(() => setLoading(false));
   }, [fetchPlayers, fetchGameSlots, fetchSettings]);
 
+  // Handle notifications
   useEffect(() => {
     if (selectedPlayerId) {
       localStorage.setItem("selectedPlayerId", String(selectedPlayerId));
       fetchNotifications();
+    }
+  }, [selectedPlayerId, fetchNotifications]);
 
-      // Check if this player is an admin
+  // Handle admin role on player change — always clear, then re-prompt if admin
+  useEffect(() => {
+    // Always clear role on any player change
+    sessionStorage.removeItem("setupRole");
+    setShowPinPrompt(false);
+    setPinInput("");
+    setPinError("");
+    window.dispatchEvent(new Event("storage"));
+
+    if (selectedPlayerId && settings) {
       const isAdmin =
-        selectedPlayerId === settings?.creatorPlayerId ||
-        selectedPlayerId === settings?.maintainerPlayerId;
+        selectedPlayerId === settings.creatorPlayerId ||
+        selectedPlayerId === settings.maintainerPlayerId;
 
       if (isAdmin) {
-        // Show PIN prompt if not already authenticated
-        const currentRole = sessionStorage.getItem("setupRole");
-        if (!currentRole) {
-          setShowPinPrompt(true);
-          setPinInput("");
-          setPinError("");
-        }
-      } else {
-        // Clear admin role when switching to non-admin player
-        sessionStorage.removeItem("setupRole");
-        setShowPinPrompt(false);
-        // Trigger nav update via storage event
-        window.dispatchEvent(new Event("storage"));
+        setShowPinPrompt(true);
       }
-    } else {
-      sessionStorage.removeItem("setupRole");
-      setShowPinPrompt(false);
-      window.dispatchEvent(new Event("storage"));
     }
-  }, [selectedPlayerId, settings, fetchNotifications]);
+  }, [selectedPlayerId, settings]);
 
   useEffect(() => {
     const interval = setInterval(fetchGameSlots, 30000);
