@@ -258,7 +258,7 @@ export default function Home() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-lg font-bold">{settings?.clubName || "Games Signup"} <span className="text-base font-normal text-muted">v{APP_VERSION}</span></h1>
+          <h1 className="text-lg font-bold">{settings?.clubName || "Games Signup"} <span className="text-base font-semibold text-primary">Games Signup</span> <span className="text-base font-normal text-muted">v{APP_VERSION}</span></h1>
           <div className="flex items-center gap-3">
             {selectedPlayerId && (
               <button

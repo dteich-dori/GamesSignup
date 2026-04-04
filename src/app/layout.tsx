@@ -11,6 +11,16 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "Games Signup",
   description: "Tennis doubles game signup board",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon-192.svg",
+    apple: "/icon-192.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Games Signup",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({

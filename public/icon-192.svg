@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="32" fill="#2563eb"/>
+  <!-- Tennis ball -->
+  <circle cx="96" cy="80" r="36" fill="#c8e64a" stroke="#8db600" stroke-width="2"/>
+  <path d="M68 58 C82 80, 82 80, 68 102" fill="none" stroke="#8db600" stroke-width="2.5"/>
+  <path d="M124 58 C110 80, 110 80, 124 102" fill="none" stroke="#8db600" stroke-width="2.5"/>
+  <!-- Text -->
+  <text x="96" y="145" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="white">GAMES</text>
+  <text x="96" y="168" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="white">SIGNUP</text>
+</svg>
