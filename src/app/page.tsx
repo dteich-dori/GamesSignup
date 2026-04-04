@@ -192,7 +192,6 @@ export default function Home() {
                 )}
               </button>
             )}
-            <Link href="/setup" className="text-sm text-primary hover:underline">Setup</Link>
           </div>
         </div>
 
