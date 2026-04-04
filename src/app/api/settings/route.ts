@@ -3,6 +3,8 @@ import { db } from "@/db/getDb";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   try {
     const database = await db();
