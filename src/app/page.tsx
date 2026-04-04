@@ -254,7 +254,18 @@ export default function Home() {
 
         <select
           value={selectedPlayerId || ""}
-          onChange={(e) => setSelectedPlayerId(e.target.value ? Number(e.target.value) : null)}
+          onChange={(e) => {
+            // Always clear admin role when player changes
+            sessionStorage.removeItem("setupRole");
+            setShowPinPrompt(false);
+            setPinInput("");
+            setPinError("");
+            window.dispatchEvent(new Event("storage"));
+            // Force re-trigger by clearing first, then setting new value
+            const newId = e.target.value ? Number(e.target.value) : null;
+            setSelectedPlayerId(null);
+            setTimeout(() => setSelectedPlayerId(newId), 0);
+          }}
           className="w-full p-2.5 rounded-lg border border-border bg-card text-base"
         >
           <option value="">— Select your name —</option>
