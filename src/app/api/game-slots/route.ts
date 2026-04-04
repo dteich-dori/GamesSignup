@@ -134,17 +134,25 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { id, timeSlot } = body;
+  const { id } = body;
 
-  if (!id || !timeSlot) {
-    return NextResponse.json({ error: "id and timeSlot are required" }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if ("timeSlot" in body) updateData.timeSlot = body.timeSlot;
+  if ("reservedCourt" in body) updateData.reservedCourt = body.reservedCourt;
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
   const database = await db();
 
   const [updated] = await database
     .update(gameSlots)
-    .set({ timeSlot })
+    .set(updateData)
     .where(eq(gameSlots.id, id))
     .returning();
 

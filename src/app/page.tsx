@@ -25,6 +25,7 @@ interface GameSlot {
   timeSlot: string;
   maxPlayers: number;
   isLocked: boolean;
+  reservedCourt: string | null;
   signups: Signup[];
 }
 
@@ -187,6 +188,15 @@ export default function Home() {
       body: JSON.stringify({ id: slotId, timeSlot: newTime.trim() }),
     });
     setEditingTimeKey(null);
+    fetchGameSlots();
+  };
+
+  const handleCourtReservation = async (slotId: number, reservedCourt: string | null) => {
+    await fetch("/api/game-slots", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: slotId, reservedCourt }),
+    });
     fetchGameSlots();
   };
 
@@ -381,14 +391,48 @@ export default function Home() {
 
                 {/* Per-court time row */}
                 <tr>
-                  <td className="border border-border p-1 text-xs font-bold text-foreground">Time</td>
+                  <td className="border border-border p-0 text-xs font-bold text-foreground">
+                    <div className="flex flex-col items-center gap-0.5 p-1">
+                      <span className="text-[10px] text-muted">Ct#</span>
+                    </div>
+                  </td>
                   {dates.map((d) => {
                     const slot = slotMap.get(`${d}-${courtNum}`);
                     const timeValue = slot?.timeSlot || settings?.defaultTimeSlot || "";
                     const key = `${d}-${courtNum}`;
                     const isEditing = editingTimeKey === key;
+                    const isReserved = !!slot?.reservedCourt;
                     return (
                       <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
+                        {/* Court reservation: checkbox + court number */}
+                        {slot && (
+                          <div className="flex items-center justify-center gap-0.5 px-0.5 py-0.5 border-b border-border bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={isReserved}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handleCourtReservation(slot.id, slot.reservedCourt || "");
+                                } else {
+                                  handleCourtReservation(slot.id, null);
+                                }
+                              }}
+                              className="w-3 h-3"
+                            />
+                            <input
+                              type="text"
+                              maxLength={2}
+                              value={slot.reservedCourt || ""}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, "").slice(0, 2);
+                                handleCourtReservation(slot.id, val || null);
+                              }}
+                              placeholder="--"
+                              className="w-6 text-[10px] text-center border-0 outline-none bg-transparent font-bold"
+                            />
+                          </div>
+                        )}
+                        {/* Time display/edit */}
                         {isEditing && slot ? (
                           <input
                             type="text"
