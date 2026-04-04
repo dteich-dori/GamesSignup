@@ -1,65 +1,403 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+
+interface Player {
+  id: number;
+  name: string;
+  email: string | null;
+  isActive: boolean;
+}
+
+interface Signup {
+  id: number;
+  playerId: number;
+  playerName: string;
+  signedUpAt: string;
+}
+
+interface GameSlot {
+  id: number;
+  date: string;
+  courtNumber: number;
+  timeSlot: string;
+  maxPlayers: number;
+  isLocked: boolean;
+  signups: Signup[];
+}
+
+interface Notification {
+  id: number;
+  type: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+
+interface Settings {
+  clubName: string;
+  courtsAvailable: number;
+  defaultTimeSlot: string;
+  playersPerGame: number;
+}
 
 export default function Home() {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+  const [gameSlots, setGameSlots] = useState<GameSlot[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  const fetchPlayers = useCallback(async () => {
+    const res = await fetch("/api/players");
+    const data = await res.json();
+    setPlayers(data.filter((p: Player) => p.isActive));
+  }, []);
+
+  const fetchGameSlots = useCallback(async () => {
+    const res = await fetch("/api/game-slots?generate=true");
+    const data = await res.json();
+    setGameSlots(data);
+  }, []);
+
+  const fetchSettings = useCallback(async () => {
+    const res = await fetch("/api/settings");
+    const data = await res.json();
+    setSettings(data);
+  }, []);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!selectedPlayerId) return;
+    const res = await fetch(`/api/notifications?playerId=${selectedPlayerId}`);
+    const data = await res.json();
+    setNotifications(data);
+  }, [selectedPlayerId]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("selectedPlayerId");
+    if (saved) setSelectedPlayerId(Number(saved));
+    Promise.all([fetchPlayers(), fetchGameSlots(), fetchSettings()]).then(() => setLoading(false));
+  }, [fetchPlayers, fetchGameSlots, fetchSettings]);
+
+  useEffect(() => {
+    if (selectedPlayerId) {
+      localStorage.setItem("selectedPlayerId", String(selectedPlayerId));
+      fetchNotifications();
+    }
+  }, [selectedPlayerId, fetchNotifications]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchGameSlots, 30000);
+    return () => clearInterval(interval);
+  }, [fetchGameSlots]);
+
+  const handleJoin = async (gameSlotId: number) => {
+    if (!selectedPlayerId) return alert("Please select your name first");
+    const res = await fetch("/api/signups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameSlotId, playerId: selectedPlayerId }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      return alert(err.error);
+    }
+    fetchGameSlots();
+  };
+
+  const handleWithdraw = async (gameSlotId: number) => {
+    if (!selectedPlayerId) return;
+    if (!confirm("Are you sure you want to withdraw from this game?")) return;
+    const res = await fetch(
+      `/api/signups?gameSlotId=${gameSlotId}&playerId=${selectedPlayerId}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) {
+      const err = await res.json();
+      return alert(err.error);
+    }
+    fetchGameSlots();
+    fetchNotifications();
+  };
+
+  const markNotificationRead = async (id: number) => {
+    await fetch("/api/notifications", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, read: true }),
+    });
+    fetchNotifications();
+  };
+
+  // Group game slots: { date -> { courtNumber -> GameSlot } }
+  const dates = [...new Set(gameSlots.map((s) => s.date))].sort();
+  const courtNumbers = [...new Set(gameSlots.map((s) => s.courtNumber))].sort((a, b) => a - b);
+
+  const slotMap = new Map<string, GameSlot>();
+  for (const slot of gameSlots) {
+    slotMap.set(`${slot.date}-${slot.courtNumber}`, slot);
+  }
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const formatDayDate = (dateStr: string) => {
+    const date = new Date(dateStr + "T12:00:00");
+    const day = date.toLocaleDateString("en-US", { weekday: "short" });
+    const monthDay = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return { day, monthDay };
+  };
+
+  const isToday = (dateStr: string) => {
+    const date = new Date(dateStr + "T12:00:00");
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const isPast = (dateStr: string) => {
+    return new Date(dateStr + "T23:59:59") < new Date();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-muted text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  const maxPlayers = settings?.playersPerGame ?? 4;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-lg font-bold">{settings?.clubName || "Games Signup"}</h1>
+          <div className="flex items-center gap-3">
+            {selectedPlayerId && (
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-1.5 rounded-lg hover:bg-muted-bg"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-danger text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
+            <Link href="/setup" className="text-sm text-primary hover:underline">Setup</Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <select
+          value={selectedPlayerId || ""}
+          onChange={(e) => setSelectedPlayerId(e.target.value ? Number(e.target.value) : null)}
+          className="w-full p-2.5 rounded-lg border border-border bg-card text-base"
+        >
+          <option value="">— Select your name —</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      </header>
+
+      {/* Notifications panel */}
+      {showNotifications && (
+        <div className="mx-4 mt-2 border border-border rounded-lg bg-card overflow-hidden">
+          <div className="p-3 border-b border-border font-medium bg-muted-bg text-sm">Notifications</div>
+          {notifications.length === 0 ? (
+            <div className="p-4 text-muted text-sm">No notifications</div>
+          ) : (
+            notifications.slice(0, 10).map((n) => (
+              <div
+                key={n.id}
+                className={`p-3 border-b border-border text-sm cursor-pointer ${!n.read ? "bg-blue-50" : ""}`}
+                onClick={() => !n.read && markNotificationRead(n.id)}
+              >
+                <div className="flex items-start gap-2">
+                  <span className={`inline-block w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                    n.type === "CANCELLATION" ? "bg-danger" :
+                    n.type === "REMINDER" ? "bg-primary" : "bg-muted"
+                  }`} />
+                  <div>
+                    <p>{n.message}</p>
+                    <p className="text-muted text-xs mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      </main>
+      )}
+
+      {/* Spreadsheet-style grid */}
+      <div className="flex-1 overflow-x-auto px-2 py-4">
+        <table className="border-collapse w-full min-w-[600px]" style={{ tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: "70px" }} />
+            {dates.map((d) => (
+              <col key={d} style={{ width: "72px" }} />
+            ))}
+          </colgroup>
+
+          {/* Header rows: combined Day+Date, Time */}
+          <thead>
+            <tr>
+              <td className="border border-border p-1 text-sm font-bold text-foreground"></td>
+              {dates.map((d) => {
+                const { day, monthDay } = formatDayDate(d);
+                return (
+                  <td key={d} className={`border-l-2 border-r-2 border-t-2 border-gray-400 p-1 text-center ${
+                    isToday(d) ? "bg-primary text-white" : "bg-muted-bg"
+                  }`}>
+                    <div className="text-sm font-extrabold text-foreground leading-tight" style={isToday(d) ? { color: "white" } : {}}>
+                      {day}
+                    </div>
+                    <div className="text-xs font-bold text-foreground leading-tight" style={isToday(d) ? { color: "white" } : {}}>
+                      {monthDay}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+            <tr>
+              <td className="border border-border p-1 text-xs font-bold text-foreground">Time</td>
+              {dates.map((d) => {
+                const slot = slotMap.get(`${d}-${courtNumbers[0]}`);
+                return (
+                  <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-1 text-xs text-center font-semibold text-foreground">
+                    {slot?.timeSlot || settings?.defaultTimeSlot || ""}
+                  </td>
+                );
+              })}
+            </tr>
+          </thead>
+
+            {courtNumbers.map((courtNum, courtIdx) => (
+              <tbody key={`court-${courtNum}`}>
+                {/* Court/Game header row */}
+                <tr className="bg-muted-bg">
+                  <td className="border border-border p-1 text-sm font-extrabold text-center text-foreground" colSpan={dates.length + 1}>
+                    Game {courtNum}
+                  </td>
+                </tr>
+
+                {/* Player slot rows */}
+                {Array.from({ length: maxPlayers }, (_, playerIdx) => (
+                  <tr key={`${courtNum}-${playerIdx}`}>
+                    <td className="border border-border p-1 text-xs font-bold text-center text-foreground">
+                      {playerIdx + 1}
+                    </td>
+                    {dates.map((d) => {
+                      const slot = slotMap.get(`${d}-${courtNum}`);
+                      if (!slot) {
+                        return <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 bg-gray-50" />;
+                      }
+
+                      const signup = slot.signups[playerIdx];
+                      const isFull = slot.signups.length >= slot.maxPlayers;
+                      const isPlayerSignedUp = slot.signups.some((s) => s.playerId === selectedPlayerId);
+                      const isThisMe = signup?.playerId === selectedPlayerId;
+                      const datePast = isPast(d);
+                      const isEmptySlot = !signup;
+                      const canJoin = isEmptySlot && !isFull && !datePast && selectedPlayerId && !isPlayerSignedUp;
+
+                      return (
+                        <td
+                          key={d}
+                          className={`border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-center ${
+                            datePast ? "bg-gray-100 opacity-60" :
+                            isFull ? "bg-success-bg/40" :
+                            ""
+                          }`}
+                        >
+                          {signup ? (
+                            <div
+                              className={`px-0.5 py-1 text-sm font-bold leading-tight truncate ${
+                                isThisMe
+                                  ? "bg-primary text-white cursor-pointer"
+                                  : "text-foreground"
+                              }`}
+                              onClick={() => {
+                                if (isThisMe && !datePast) handleWithdraw(slot.id);
+                              }}
+                              title={isThisMe && !datePast ? "Click to withdraw" : signup.playerName}
+                            >
+                              {signup.playerName}
+                            </div>
+                          ) : canJoin ? (
+                            <button
+                              onClick={() => handleJoin(slot.id)}
+                              className="w-full h-full px-0.5 py-1 text-lg font-extrabold text-primary hover:bg-blue-50 transition-colors cursor-pointer"
+                              title="Click to join"
+                            >
+                              +
+                            </button>
+                          ) : (
+                            <div className="px-0.5 py-1 text-sm text-transparent select-none">&nbsp;</div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+
+                {/* Status row */}
+                <tr key={`status-${courtNum}`}>
+                  <td className="border border-border p-1 text-xs text-center text-foreground font-bold">
+                    {/* empty label */}
+                  </td>
+                  {dates.map((d) => {
+                    const slot = slotMap.get(`${d}-${courtNum}`);
+                    if (!slot) {
+                      return <td key={d} className="border-l-2 border-r-2 border-b-2 border-gray-400 border-t border-border p-0" />;
+                    }
+                    const isFull = slot.signups.length >= slot.maxPlayers;
+                    const count = slot.signups.length;
+                    return (
+                      <td key={d} className={`border-l-2 border-r-2 border-b-2 border-gray-400 border-t border-border p-1 text-xs text-center font-extrabold ${
+                        isFull ? "bg-success text-white" :
+                        count > 0 ? "text-warning" :
+                        "text-muted"
+                      }`}>
+                        {isFull ? "FULL" : count > 0 ? `${count}/${slot.maxPlayers}` : ""}
+                      </td>
+                    );
+                  })}
+                </tr>
+
+                {/* Spacer between courts */}
+                {courtIdx < courtNumbers.length - 1 && (
+                  <tr>
+                    <td colSpan={dates.length + 1} className="h-3 bg-background" />
+                  </tr>
+                )}
+              </tbody>
+            ))}
+        </table>
+      </div>
+
+      {/* Legend / footer */}
+      <footer className="border-t border-border px-4 py-2 text-xs text-muted flex flex-wrap gap-4">
+        <span><span className="inline-block w-3 h-3 bg-primary rounded mr-1 align-middle" /> = You (click to withdraw)</span>
+        <span><span className="inline-block w-3 h-3 bg-success rounded mr-1 align-middle" /> = Game full</span>
+        <span className="text-primary font-medium">+</span> = Click to join
+        <span className="ml-auto">Auto-refreshes every 30s</span>
+      </footer>
+
+      {gameSlots.length === 0 && (
+        <div className="text-center py-12 text-muted">
+          <p className="text-lg mb-2">No games available</p>
+          <p className="text-sm">Go to <Link href="/setup" className="text-primary underline">Setup</Link> to configure courts and generate game slots.</p>
+        </div>
+      )}
     </div>
   );
 }
