@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,6 +13,20 @@ const links = [
 
 export function Nav() {
   const pathname = usePathname();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRole(sessionStorage.getItem("setupRole"));
+  }, []);
+
+  // Also re-check when navigating (e.g. after logging in on setup page)
+  useEffect(() => {
+    setRole(sessionStorage.getItem("setupRole"));
+  }, [pathname]);
+
+  if (role !== "creator" && role !== "maintainer") {
+    return null;
+  }
 
   return (
     <nav className="w-56 border-r border-border bg-gray-50 p-4 flex flex-col gap-1">
