@@ -131,3 +131,23 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(created, { status: 201 });
 }
+
+export async function PUT(request: NextRequest) {
+  const body = await request.json();
+  const { date, timeSlot } = body;
+
+  if (!date || !timeSlot) {
+    return NextResponse.json({ error: "Date and timeSlot are required" }, { status: 400 });
+  }
+
+  const database = await db();
+
+  // Update all game slots for the given date
+  const updated = await database
+    .update(gameSlots)
+    .set({ timeSlot })
+    .where(eq(gameSlots.date, date))
+    .returning();
+
+  return NextResponse.json(updated);
+}

@@ -50,6 +50,8 @@ export default function Home() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [editingTimeDate, setEditingTimeDate] = useState<string | null>(null);
+  const [editingTimeValue, setEditingTimeValue] = useState("");
 
   const fetchPlayers = useCallback(async () => {
     const res = await fetch("/api/players");
@@ -130,6 +132,17 @@ export default function Home() {
       body: JSON.stringify({ id, read: true }),
     });
     fetchNotifications();
+  };
+
+  const handleTimeChange = async (date: string, newTime: string) => {
+    if (!newTime.trim()) return;
+    await fetch("/api/game-slots", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date, timeSlot: newTime.trim() }),
+    });
+    setEditingTimeDate(null);
+    fetchGameSlots();
   };
 
   // Group game slots: { date -> { courtNumber -> GameSlot } }
@@ -270,9 +283,35 @@ export default function Home() {
               <td className="border border-border p-1 text-xs font-bold text-foreground">Time</td>
               {dates.map((d) => {
                 const slot = slotMap.get(`${d}-${courtNumbers[0]}`);
+                const timeValue = slot?.timeSlot || settings?.defaultTimeSlot || "";
+                const isEditing = editingTimeDate === d;
                 return (
-                  <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-1 text-xs text-center font-semibold text-foreground">
-                    {slot?.timeSlot || settings?.defaultTimeSlot || ""}
+                  <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editingTimeValue}
+                        onChange={(e) => setEditingTimeValue(e.target.value)}
+                        onBlur={() => handleTimeChange(d, editingTimeValue)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleTimeChange(d, editingTimeValue);
+                          if (e.key === "Escape") setEditingTimeDate(null);
+                        }}
+                        autoFocus
+                        className="w-full text-xs text-center font-semibold p-1 border-0 outline-none bg-blue-50"
+                      />
+                    ) : (
+                      <div
+                        onClick={() => {
+                          setEditingTimeDate(d);
+                          setEditingTimeValue(timeValue);
+                        }}
+                        className="p-1 cursor-pointer hover:bg-blue-50 transition-colors"
+                        title="Click to change time"
+                      >
+                        {timeValue}
+                      </div>
+                    )}
                   </td>
                 );
               })}
