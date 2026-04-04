@@ -36,6 +36,9 @@ yarn-error.log*
 # local database
 local.db
 
+# backups
+/Backup
+
 # vercel
 .vercel
 
