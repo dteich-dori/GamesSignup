@@ -229,7 +229,7 @@ export default function Home() {
   const maxPlayers = settings?.playersPerGame ?? 4;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col max-w-4xl">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3">
         <div className="flex items-center justify-between mb-2">
