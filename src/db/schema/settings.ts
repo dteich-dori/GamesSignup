@@ -14,4 +14,5 @@ export const settings = sqliteTable("settings", {
   maintainerPlayerId: integer("maintainer_player_id"),
   maintainerPin: text("maintainer_pin").notNull().default(""),
   errorReportEmail: text("error_report_email"),
+  startDate: text("start_date"),
 });

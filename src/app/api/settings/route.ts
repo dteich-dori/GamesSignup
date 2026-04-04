@@ -31,7 +31,7 @@ export async function PUT(request: NextRequest) {
     "clubName", "courtsAvailable", "defaultTimeSlot", "playersPerGame",
     "daysAhead", "reservationCutoffHours", "reminderTime",
     "creatorPlayerId", "creatorPin", "maintainerPlayerId", "maintainerPin",
-    "errorReportEmail",
+    "errorReportEmail", "startDate",
   ];
 
   for (const field of allowedFields) {

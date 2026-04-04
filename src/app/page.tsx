@@ -44,6 +44,7 @@ interface Settings {
   playersPerGame: number;
   creatorPlayerId: number | null;
   maintainerPlayerId: number | null;
+  startDate: string | null;
 }
 
 export default function Home() {
@@ -69,13 +70,13 @@ export default function Home() {
   }, []);
 
   const fetchGameSlots = useCallback(async () => {
-    const from = new Date();
-    from.setDate(from.getDate() + dateOffset);
-    const fromStr = from.toISOString().split("T")[0];
+    const baseDate = settings?.startDate ? new Date(settings.startDate + "T12:00:00") : new Date();
+    baseDate.setDate(baseDate.getDate() + dateOffset);
+    const fromStr = baseDate.toISOString().split("T")[0];
     const res = await fetch(`/api/game-slots?generate=true&from=${fromStr}`);
     const data = await res.json();
     setGameSlots(data);
-  }, [dateOffset]);
+  }, [dateOffset, settings?.startDate]);
 
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");

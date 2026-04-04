@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { gameSlots, settings, signups, players } from "@/db/schema";
-import { eq, and, gte, lte, asc } from "drizzle-orm";
+import { eq, and, gte, lte, lt, asc, inArray } from "drizzle-orm";
 
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
@@ -157,4 +157,35 @@ export async function PUT(request: NextRequest) {
     .returning();
 
   return NextResponse.json(updated);
+}
+
+export async function DELETE(request: NextRequest) {
+  const body = await request.json();
+  const { beforeDate } = body;
+
+  if (!beforeDate) {
+    return NextResponse.json({ error: "beforeDate is required" }, { status: 400 });
+  }
+
+  const database = await db();
+
+  // Find slots to delete
+  const slotsToDelete = await database
+    .select({ id: gameSlots.id })
+    .from(gameSlots)
+    .where(lt(gameSlots.date, beforeDate));
+
+  if (slotsToDelete.length === 0) {
+    return NextResponse.json({ deleted: 0 });
+  }
+
+  const slotIds = slotsToDelete.map((s) => s.id);
+
+  // Delete signups for those slots first
+  await database.delete(signups).where(inArray(signups.gameSlotId, slotIds));
+
+  // Delete the game slots
+  await database.delete(gameSlots).where(lt(gameSlots.date, beforeDate));
+
+  return NextResponse.json({ deleted: slotIds.length });
 }

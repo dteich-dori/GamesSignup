@@ -17,6 +17,7 @@ interface Settings {
   maintainerPlayerId: number | null;
   maintainerPin: string;
   errorReportEmail: string | null;
+  startDate: string | null;
 }
 
 interface Player {
@@ -312,6 +313,53 @@ export default function SetupPage() {
               />
             </div>
           </div>
+
+          {/* Start Date + Shift Games */}
+          {role === "creator" && (
+            <div className="border-t border-border pt-4 mt-4">
+              <h3 className="font-semibold mb-3">Game Table Start Date</h3>
+              <div className="flex items-end gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={settings.startDate || ""}
+                    onChange={(e) => setSettings({ ...settings, startDate: e.target.value || null })}
+                    className="p-2 rounded-lg border border-border"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!settings.startDate) {
+                      alert("Please set a start date first");
+                      return;
+                    }
+                    if (!confirm(`This will permanently delete all game slots before ${settings.startDate}. Are you sure?`)) return;
+                    // Save the start date
+                    await fetch("/api/settings", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ startDate: settings.startDate }),
+                    });
+                    // Delete old slots
+                    const delRes = await fetch("/api/game-slots", {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ beforeDate: settings.startDate }),
+                    });
+                    const delData = await delRes.json();
+                    // Generate new slots
+                    await fetch(`/api/game-slots?generate=true`);
+                    alert(`Shifted games: ${delData.deleted} old slot(s) removed. New slots generated from ${settings.startDate}.`);
+                  }}
+                  className="px-4 py-2 bg-danger text-white rounded-lg text-sm font-medium"
+                >
+                  Shift Games
+                </button>
+              </div>
+              <p className="text-xs text-muted mt-2">Deletes all game slots before the start date. Signups on remaining dates are preserved.</p>
+            </div>
+          )}
 
           {/* Admin assignment — Creator only */}
           {role === "creator" && (
