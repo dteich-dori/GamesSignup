@@ -399,24 +399,18 @@ export default function Home() {
                   </td>
                 </tr>
 
-                {/* Per-court time row */}
+                {/* Court reservation row */}
                 <tr>
-                  <td className="border border-border p-0 text-xs font-bold text-foreground">
-                    <div className="flex flex-col items-center gap-0.5 p-1">
-                      <span className="text-[10px] text-muted">Ct#</span>
-                    </div>
+                  <td className="border border-border p-1 text-xs font-bold text-foreground text-center">
+                    Ct#
                   </td>
                   {dates.map((d) => {
                     const slot = slotMap.get(`${d}-${courtNum}`);
-                    const timeValue = slot?.timeSlot || settings?.defaultTimeSlot || "";
-                    const key = `${d}-${courtNum}`;
-                    const isEditing = editingTimeKey === key;
                     const isReserved = !!slot?.reservedCourt;
                     return (
-                      <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
-                        {/* Court reservation: checkbox + court number */}
+                      <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-center bg-gray-50">
                         {slot && (
-                          <div className="flex items-center justify-center gap-0.5 px-0.5 py-0.5 border-b border-border bg-gray-50">
+                          <div className="flex items-center justify-center gap-1 px-1 py-1.5">
                             <input
                               type="checkbox"
                               checked={isReserved}
@@ -427,7 +421,7 @@ export default function Home() {
                                   handleCourtReservation(slot.id, null);
                                 }
                               }}
-                              className="w-3 h-3"
+                              className="w-4 h-4"
                             />
                             <input
                               type="text"
@@ -438,11 +432,25 @@ export default function Home() {
                                 handleCourtReservation(slot.id, val || null);
                               }}
                               placeholder="--"
-                              className="w-6 text-[10px] text-center border-0 outline-none bg-transparent font-bold"
+                              className="w-7 text-sm text-center border-0 outline-none bg-transparent font-bold"
                             />
                           </div>
                         )}
-                        {/* Time display/edit */}
+                      </td>
+                    );
+                  })}
+                </tr>
+
+                {/* Time row */}
+                <tr>
+                  <td className="border border-border p-1 text-xs font-bold text-foreground text-center">Time</td>
+                  {dates.map((d) => {
+                    const slot = slotMap.get(`${d}-${courtNum}`);
+                    const timeValue = slot?.timeSlot || settings?.defaultTimeSlot || "";
+                    const key = `${d}-${courtNum}`;
+                    const isEditing = editingTimeKey === key;
+                    return (
+                      <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
                         {isEditing && slot ? (
                           <input
                             type="text"
