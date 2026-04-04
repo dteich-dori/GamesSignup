@@ -57,7 +57,22 @@ export default function SetupPage() {
     const savedRole = sessionStorage.getItem("setupRole");
     if (savedRole === "creator" || savedRole === "maintainer") {
       setRole(savedRole);
+      return;
     }
+    // Check if PINs are empty (first-time setup) — auto-login as creator
+    fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "" }),
+    }).then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.firstTime) {
+          setRole(data.role);
+          sessionStorage.setItem("setupRole", data.role);
+        }
+      }
+    });
   }, []);
 
   useEffect(() => {

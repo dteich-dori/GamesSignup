@@ -18,6 +18,11 @@ export async function POST(request: NextRequest) {
 
   const s = rows[0];
 
+  // Allow creator access when no PINs are configured (first-time setup)
+  if (!s.creatorPin && !s.maintainerPin) {
+    return NextResponse.json({ role: "creator", firstTime: true });
+  }
+
   if (pin === s.creatorPin) {
     return NextResponse.json({ role: "creator" });
   }
