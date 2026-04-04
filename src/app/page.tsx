@@ -282,12 +282,14 @@ export default function Home() {
           <div className="text-sm font-medium mb-2">Enter your PIN to access admin features:</div>
           <div className="flex gap-2">
             <input
-              type="password"
+              type="text"
+              inputMode="numeric"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
               placeholder="PIN"
               autoFocus
+              autoComplete="off"
               className="flex-1 p-2 rounded-lg border border-border text-base"
             />
             <button
