@@ -188,6 +188,7 @@ export default function SetupPage() {
           <button
             onClick={handleLogin}
             className="w-full mt-4 p-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover"
+            title="Submit PIN to access setup"
           >
             Enter
           </button>
@@ -216,6 +217,7 @@ export default function SetupPage() {
           <button
             onClick={() => { setRole(null); sessionStorage.removeItem("setupRole"); }}
             className="text-sm text-danger hover:underline"
+            title="Sign out and return to PIN login"
           >
             Logout
           </button>
@@ -229,6 +231,7 @@ export default function SetupPage() {
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
             activeTab === "settings" ? "border-primary text-primary" : "border-transparent text-muted hover:text-foreground"
           }`}
+          title="Configure club name, courts, time slots, and admin PINs"
         >
           Settings
         </button>
@@ -237,6 +240,7 @@ export default function SetupPage() {
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
             activeTab === "players" ? "border-primary text-primary" : "border-transparent text-muted hover:text-foreground"
           }`}
+          title="Add, edit, or remove players"
         >
           Players ({players.length})
         </button>
@@ -386,6 +390,7 @@ export default function SetupPage() {
             onClick={handleSaveSettings}
             disabled={saving}
             className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover disabled:opacity-50"
+            title="Save all settings changes to the database"
           >
             {saving ? "Saving..." : "Save Settings"}
           </button>
@@ -416,6 +421,7 @@ export default function SetupPage() {
             <button
               onClick={handleAddPlayer}
               className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover"
+              title="Add a new player to the roster"
             >
               Add
             </button>
@@ -461,8 +467,8 @@ export default function SetupPage() {
                           />
                         </td>
                         <td className="p-2 text-right space-x-2">
-                          <button onClick={() => handleUpdatePlayer(editingPlayer)} className="text-success font-medium">Save</button>
-                          <button onClick={() => setEditingPlayer(null)} className="text-muted">Cancel</button>
+                          <button onClick={() => handleUpdatePlayer(editingPlayer)} className="text-success font-medium" title="Save changes to this player">Save</button>
+                          <button onClick={() => setEditingPlayer(null)} className="text-muted" title="Discard changes">Cancel</button>
                         </td>
                       </>
                     ) : (
@@ -470,7 +476,7 @@ export default function SetupPage() {
                         <td className={`p-3 ${!player.isActive ? "text-muted line-through" : ""}`}>{player.name}</td>
                         <td className="p-3 text-muted">{player.email || "—"}</td>
                         <td className="p-3 text-center">
-                          <button onClick={() => handleToggleActive(player)}>
+                          <button onClick={() => handleToggleActive(player)} title={player.isActive ? "Click to deactivate this player" : "Click to reactivate this player"}>
                             {player.isActive ? (
                               <span className="text-success">Active</span>
                             ) : (
@@ -479,8 +485,8 @@ export default function SetupPage() {
                           </button>
                         </td>
                         <td className="p-3 text-right space-x-2">
-                          <button onClick={() => setEditingPlayer({ ...player })} className="text-primary">Edit</button>
-                          <button onClick={() => handleDeletePlayer(player.id)} className="text-danger">Delete</button>
+                          <button onClick={() => setEditingPlayer({ ...player })} className="text-primary" title="Edit this player's name, email, or status">Edit</button>
+                          <button onClick={() => handleDeletePlayer(player.id)} className="text-danger" title="Permanently remove this player">Delete</button>
                         </td>
                       </>
                     )}
