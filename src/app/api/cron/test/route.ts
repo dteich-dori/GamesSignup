@@ -38,6 +38,24 @@ export async function GET() {
     const isComplete = slotSignups.length >= slot.maxPlayers;
     const isIncomplete = slotSignups.length > 0 && slotSignups.length < slot.maxPlayers;
 
+    const playerNames = slotSignups.map((p) => p.playerName).join(", ");
+    const templateVars: Record<string, string> = {
+      date: tomorrowStr,
+      court: String(slot.courtNumber),
+      time: slot.timeSlot,
+      players: playerNames,
+      count: String(slotSignups.length),
+      max: String(slot.maxPlayers),
+    };
+
+    // Apply template to show what the actual message would look like
+    let previewMessage = "";
+    if (isComplete && s?.reminderTemplate) {
+      previewMessage = s.reminderTemplate.replace(/\{(\w+)\}/g, (_, key) => templateVars[key] || `{${key}}`);
+    } else if (isIncomplete && s?.urgentTemplate) {
+      previewMessage = s.urgentTemplate.replace(/\{(\w+)\}/g, (_, key) => templateVars[key] || `{${key}}`);
+    }
+
     slotDetails.push({
       court: slot.courtNumber,
       time: slot.timeSlot,
@@ -50,6 +68,7 @@ export async function GET() {
       status: isComplete ? "COMPLETE → would send REMINDER" :
               isIncomplete ? "INCOMPLETE → would send URGENT notice" :
               "EMPTY → no action",
+      messagePreview: previewMessage || undefined,
     });
   }
 
