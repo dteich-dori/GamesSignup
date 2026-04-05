@@ -399,7 +399,7 @@ export default function CommunicationsPage() {
                   </label>
                 </div>
                 <p className="text-xs text-muted mt-1">
-                  {channel === "both" && "Players with phone+carrier get text. Others get email. No one gets both."}
+                  {channel === "both" && "Players get email AND text if both are configured. Players with only one channel get that one."}
                   {channel === "email" && "All players with email receive an email."}
                   {channel === "sms" && "Players with phone+carrier get text. Players without get email as fallback."}
                 </p>

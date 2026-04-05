@@ -53,12 +53,9 @@ export async function POST(request: NextRequest) {
         emailRecipients = [{ name: "Test (SMS fallback)", email: s.emailTestAddress }];
       }
     } else {
-      // "both": prefer SMS, fall back to email
-      if (hasTestSms) {
-        smsRecipients = [{ name: "Test", phone: s.emailTestPhone, carrier: s.emailTestCarrier }];
-      } else if (hasTestEmail) {
-        emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
-      }
+      // "both": send via both channels
+      if (hasTestEmail) emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
+      if (hasTestSms) smsRecipients = [{ name: "Test", phone: s.emailTestPhone, carrier: s.emailTestCarrier }];
     }
   } else {
     const playerRows = await database
@@ -88,11 +85,12 @@ export async function POST(request: NextRequest) {
           emailRecipients.push({ name: p.name, email: p.email! });
         }
       } else {
-        // "both": SMS for players with phone+carrier, email for the rest (no duplicates)
+        // "both": send via both channels — email to all with email, SMS to all with phone+carrier
+        if (hasEmail) {
+          emailRecipients.push({ name: p.name, email: p.email! });
+        }
         if (hasSms) {
           smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier! });
-        } else if (hasEmail) {
-          emailRecipients.push({ name: p.name, email: p.email! });
         }
       }
     }
