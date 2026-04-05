@@ -25,9 +25,17 @@ interface HistoryEntry {
   sentAt: string;
 }
 
+interface Template {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+}
+
 export default function CommunicationsPage() {
   const [role, setRole] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"compose" | "history">("compose");
+  const [activeTab, setActiveTab] = useState<"compose" | "templates" | "history">("compose");
 
   // Email settings
   const [emailSettings, setEmailSettings] = useState<EmailSettings>({
@@ -43,8 +51,13 @@ export default function CommunicationsPage() {
   const [showRecipients, setShowRecipients] = useState(false);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [channel, setChannel] = useState<"both" | "email" | "sms">("both");
   const [sending, setSending] = useState(false);
-  const [sendSms, setSendSms] = useState(false);
+
+  // Templates
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   // History
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -76,12 +89,19 @@ export default function CommunicationsPage() {
     setHistory(data);
   }, []);
 
+  const fetchTemplates = useCallback(async () => {
+    const res = await fetch("/api/communications/templates");
+    const data = await res.json();
+    setTemplates(data);
+  }, []);
+
   useEffect(() => {
     if (role === "creator" || role === "maintainer") {
       fetchSettings();
       fetchHistory();
+      fetchTemplates();
     }
-  }, [role, fetchSettings, fetchHistory]);
+  }, [role, fetchSettings, fetchHistory, fetchTemplates]);
 
   useEffect(() => {
     if (role === "creator" || role === "maintainer") {
@@ -119,18 +139,15 @@ export default function CommunicationsPage() {
       return;
     }
 
-    if (count > 100) {
-      alert(`Warning: Resend free tier is limited to 100 emails/day. You have ${count} recipients.`);
-    }
-
-    if (!confirm(`Send email to ${count} recipient(s) in group "${recipientGroup}"?`)) return;
+    const channelLabel = channel === "email" ? "Email only" : channel === "sms" ? "Text only" : "Email + Text";
+    if (!confirm(`Send "${channelLabel}" to ${count} recipient(s) in group "${recipientGroup}"?`)) return;
 
     setSending(true);
     try {
       const res = await fetch("/api/communications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientGroup, subject, body, sendSms }),
+        body: JSON.stringify({ recipientGroup, subject, body, channel }),
       });
       const data = await res.json();
 
@@ -140,7 +157,7 @@ export default function CommunicationsPage() {
       }
 
       let msg = `Sent: ${data.emailsSent} email(s)`;
-      if (data.smsSent > 0) msg += `, ${data.smsSent} SMS`;
+      if (data.smsSent > 0) msg += `, ${data.smsSent} text(s)`;
       msg += ".";
       if (data.warnings?.length) {
         msg += `\n\nWarnings:\n${data.warnings.join("\n")}`;
@@ -155,6 +172,32 @@ export default function CommunicationsPage() {
     }
   };
 
+  const handleLoadTemplate = (template: Template) => {
+    setSubject(template.subject);
+    setBody(template.body);
+    setActiveTab("compose");
+  };
+
+  const handleSaveAsTemplate = async (subj: string, bod: string) => {
+    const name = prompt("Template name:", subj);
+    if (!name?.trim()) return;
+    setSavingTemplate(true);
+    await fetch("/api/communications/templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), subject: subj, body: bod }),
+    });
+    setSavingTemplate(false);
+    fetchTemplates();
+    alert("Saved as template!");
+  };
+
+  const handleDeleteTemplate = async (id: number) => {
+    if (!confirm("Delete this template?")) return;
+    await fetch(`/api/communications/templates?id=${id}`, { method: "DELETE" });
+    fetchTemplates();
+  };
+
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-bold mb-6">Communications</h1>
@@ -166,16 +209,25 @@ export default function CommunicationsPage() {
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
             activeTab === "compose" ? "border-primary text-primary" : "border-transparent text-muted hover:text-foreground"
           }`}
-          title="Compose and send emails to players"
+          title="Compose and send emails or texts to players"
         >
           Compose
+        </button>
+        <button
+          onClick={() => setActiveTab("templates")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            activeTab === "templates" ? "border-primary text-primary" : "border-transparent text-muted hover:text-foreground"
+          }`}
+          title="Manage saved message templates"
+        >
+          Templates ({templates.length})
         </button>
         <button
           onClick={() => setActiveTab("history")}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
             activeTab === "history" ? "border-primary text-primary" : "border-transparent text-muted hover:text-foreground"
           }`}
-          title="View history of sent emails"
+          title="View history of sent messages"
         >
           History
         </button>
@@ -238,7 +290,29 @@ export default function CommunicationsPage() {
 
           {/* Compose Form */}
           <div className="bg-card border border-border rounded-lg p-4">
-            <h2 className="text-sm font-semibold mb-3">Compose Email</h2>
+            <h2 className="text-sm font-semibold mb-3">Compose Message</h2>
+
+            {/* Template loader */}
+            {templates.length > 0 && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium mb-1">Load Template</label>
+                <select
+                  onChange={(e) => {
+                    const t = templates.find((t) => t.id === Number(e.target.value));
+                    if (t) handleLoadTemplate(t);
+                    e.target.value = "";
+                  }}
+                  className="p-2 rounded-lg border border-border text-sm"
+                  title="Select a saved template to load into the compose form"
+                  defaultValue=""
+                >
+                  <option value="" disabled>— Select template —</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Recipient Group */}
             <div className="mb-3">
@@ -248,7 +322,7 @@ export default function CommunicationsPage() {
                   value={recipientGroup}
                   onChange={(e) => setRecipientGroup(e.target.value)}
                   className="p-2 rounded-lg border border-border text-sm"
-                  title="Select which group of players to email"
+                  title="Select which group of players to message"
                 >
                   <option value="ALL">All Players</option>
                   <option value="Test">Test (your email)</option>
@@ -270,6 +344,32 @@ export default function CommunicationsPage() {
                 </div>
               )}
             </div>
+
+            {/* Channel selection */}
+            {recipientGroup !== "Test" && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium mb-1">Send Via</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-1.5 text-sm cursor-pointer" title="SMS to players with phone+carrier, email to the rest (no duplicates)">
+                    <input type="radio" name="channel" value="both" checked={channel === "both"} onChange={() => setChannel("both")} />
+                    Email + Text
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm cursor-pointer" title="Email only to all players with an email address">
+                    <input type="radio" name="channel" value="email" checked={channel === "email"} onChange={() => setChannel("email")} />
+                    Email only
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm cursor-pointer" title="Prefer text; players without phone+carrier get email instead">
+                    <input type="radio" name="channel" value="sms" checked={channel === "sms"} onChange={() => setChannel("sms")} />
+                    Text only
+                  </label>
+                </div>
+                <p className="text-xs text-muted mt-1">
+                  {channel === "both" && "Players with phone+carrier get text. Others get email. No one gets both."}
+                  {channel === "email" && "All players with email receive an email."}
+                  {channel === "sms" && "Players with phone+carrier get text. Players without get email as fallback."}
+                </p>
+              </div>
+            )}
 
             {/* Subject */}
             <div className="mb-3">
@@ -294,30 +394,73 @@ export default function CommunicationsPage() {
               />
             </div>
 
-            {/* Send options */}
-            <div className="flex items-center gap-4">
+            {/* Send + Save as template */}
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleSend}
                 disabled={sending}
                 className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
-                title="Send the email (and optionally SMS) to all selected recipients"
+                title="Send the message to all selected recipients"
               >
                 {sending ? "Sending..." : "Send"}
               </button>
-              {recipientGroup !== "Test" && (
-                <label className="flex items-center gap-2 text-sm cursor-pointer" title="Also send as text message to players with phone number and carrier configured">
-                  <input
-                    type="checkbox"
-                    checked={sendSms}
-                    onChange={(e) => setSendSms(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                  Also send SMS
-                </label>
+              {subject.trim() && (
+                <button
+                  onClick={() => handleSaveAsTemplate(subject, body)}
+                  disabled={savingTemplate}
+                  className="px-3 py-2 bg-gray-200 text-foreground rounded-lg text-sm font-medium"
+                  title="Save the current subject and message as a reusable template"
+                >
+                  Save as Template
+                </button>
               )}
             </div>
-            <p className="text-xs text-muted mt-2">SMS uses email-to-text gateways. Players need phone number and carrier set in Setup.</p>
           </div>
+        </div>
+      )}
+
+      {/* Templates Tab */}
+      {activeTab === "templates" && (
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          {templates.length === 0 ? (
+            <div className="p-6 text-center text-muted text-sm">
+              No templates yet. Save one from Compose or from History.
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted-bg">
+                <tr>
+                  <th className="text-left p-3 font-medium">Name</th>
+                  <th className="text-left p-3 font-medium">Subject</th>
+                  <th className="text-right p-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {templates.map((t) => (
+                  <tr key={t.id} className="border-t border-border">
+                    <td className="p-3 font-medium">{t.name}</td>
+                    <td className="p-3 text-muted">{t.subject}</td>
+                    <td className="p-3 text-right space-x-2">
+                      <button
+                        onClick={() => handleLoadTemplate(t)}
+                        className="text-primary text-sm"
+                        title="Load this template into the compose form"
+                      >
+                        Use
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTemplate(t.id)}
+                        className="text-danger text-sm"
+                        title="Permanently delete this template"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
@@ -325,14 +468,14 @@ export default function CommunicationsPage() {
       {activeTab === "history" && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           {history.length === 0 ? (
-            <div className="p-6 text-center text-muted text-sm">No emails sent yet.</div>
+            <div className="p-6 text-center text-muted text-sm">No messages sent yet.</div>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-muted-bg">
                 <tr>
                   <th className="text-left p-3 font-medium">Date</th>
                   <th className="text-left p-3 font-medium">Subject</th>
-                  <th className="text-center p-3 font-medium">Group</th>
+                  <th className="text-center p-3 font-medium">Channel</th>
                   <th className="text-center p-3 font-medium">Sent</th>
                 </tr>
               </thead>
@@ -347,8 +490,8 @@ export default function CommunicationsPage() {
                     <td className="p-3">{entry.subject}</td>
                     <td className="p-3 text-center">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        entry.recipientGroup === "URGENT" ? "bg-danger/10 text-danger" :
-                        entry.recipientGroup === "REMINDER" ? "bg-primary/10 text-primary" :
+                        entry.recipientGroup.includes("URGENT") ? "bg-danger/10 text-danger" :
+                        entry.recipientGroup.includes("REMINDER") ? "bg-primary/10 text-primary" :
                         "bg-muted-bg text-foreground"
                       }`}>
                         {entry.recipientGroup}
@@ -370,9 +513,16 @@ export default function CommunicationsPage() {
                   <div><span className="font-medium">Reply-To:</span> {entry.replyTo || "—"}</div>
                   <div className="col-span-2"><span className="font-medium">Recipients:</span> {entry.recipientList}</div>
                 </div>
-                <div className="text-sm whitespace-pre-wrap bg-card p-3 rounded border border-border">
+                <div className="text-sm whitespace-pre-wrap bg-card p-3 rounded border border-border mb-3">
                   {entry.body}
                 </div>
+                <button
+                  onClick={() => handleSaveAsTemplate(entry.subject, entry.body)}
+                  className="px-3 py-1.5 bg-gray-200 text-foreground rounded-lg text-xs font-medium"
+                  title="Save this sent message as a reusable template"
+                >
+                  Use as Template
+                </button>
               </div>
             );
           })()}

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { players, settings, emailLog, activityLog } from "@/db/schema";
-import { eq, and, isNotNull, ne, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { sendBulkEmails, sendBulkSms, validateResendKey, type Recipient, type SmsRecipient } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { recipientGroup, subject, body: emailBody, sendSms } = body;
+  const { recipientGroup, subject, body: emailBody, channel } = body;
+  // channel: "email" | "sms" | "both" (default "both")
 
   if (!recipientGroup || !subject || !emailBody) {
     return NextResponse.json(
@@ -29,8 +30,9 @@ export async function POST(request: NextRequest) {
 
   const fromName = s.emailFromName;
   const replyTo = s.emailReplyTo || undefined;
+  const selectedChannel = channel || "both";
 
-  // Build recipient lists
+  // Build recipient lists with smart routing (no duplicates)
   let emailRecipients: Recipient[] = [];
   let smsRecipients: SmsRecipient[] = [];
 
@@ -40,7 +42,6 @@ export async function POST(request: NextRequest) {
     }
     emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
   } else {
-    // ALL active players
     const playerRows = await database
       .select({
         name: players.name,
@@ -51,16 +52,30 @@ export async function POST(request: NextRequest) {
       .from(players)
       .where(eq(players.isActive, true));
 
-    // Email recipients: players with email
-    emailRecipients = playerRows
-      .filter((p) => p.email && p.email.trim())
-      .map((p) => ({ name: p.name, email: p.email! }));
+    for (const p of playerRows) {
+      const hasSms = !!(p.phone && p.carrier);
+      const hasEmail = !!(p.email && p.email.trim());
 
-    // SMS recipients: players with phone + carrier
-    if (sendSms) {
-      smsRecipients = playerRows
-        .filter((p) => p.phone && p.carrier)
-        .map((p) => ({ name: p.name, phone: p.phone!, carrier: p.carrier! }));
+      if (selectedChannel === "email") {
+        // Email only
+        if (hasEmail) {
+          emailRecipients.push({ name: p.name, email: p.email! });
+        }
+      } else if (selectedChannel === "sms") {
+        // Prefer SMS; fall back to email for players without SMS
+        if (hasSms) {
+          smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier! });
+        } else if (hasEmail) {
+          emailRecipients.push({ name: p.name, email: p.email! });
+        }
+      } else {
+        // "both": SMS for players with phone+carrier, email for the rest (no duplicates)
+        if (hasSms) {
+          smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier! });
+        } else if (hasEmail) {
+          emailRecipients.push({ name: p.name, email: p.email! });
+        }
+      }
     }
   }
 
@@ -81,11 +96,14 @@ export async function POST(request: NextRequest) {
   const allRecipients = [...emailResult.recipients, ...smsResult.recipients];
 
   // Log to email log
+  const channelLabel = selectedChannel === "email" ? "Email" :
+    selectedChannel === "sms" ? "Text" : "Email+Text";
+
   if (totalSent > 0) {
     await database.insert(emailLog).values({
       subject,
       body: emailBody,
-      recipientGroup: recipientGroup + (sendSms ? " +SMS" : ""),
+      recipientGroup: `${recipientGroup} (${channelLabel})`,
       recipientCount: totalSent,
       recipientList: allRecipients.join(", "),
       fromName,
@@ -98,6 +116,7 @@ export async function POST(request: NextRequest) {
     action: "SEND_EMAIL",
     details: JSON.stringify({
       recipientGroup,
+      channel: selectedChannel,
       emailsSent: emailResult.sent,
       smsSent: smsResult.smsSent,
       subject,
