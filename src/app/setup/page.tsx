@@ -570,6 +570,26 @@ export default function SetupPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Save/Cancel buttons when editing */}
+          {editingPlayer && (
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={() => { handleUpdatePlayer(editingPlayer); setEditingPlayer(null); }}
+                className="px-6 py-2 bg-success text-white rounded-lg font-medium"
+                title="Save changes to the player being edited"
+              >
+                Save Player
+              </button>
+              <button
+                onClick={() => setEditingPlayer(null)}
+                className="px-6 py-2 bg-gray-200 text-foreground rounded-lg font-medium"
+                title="Discard changes"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
