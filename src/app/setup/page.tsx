@@ -46,19 +46,11 @@ export default function SetupPage() {
   const [role, setRole] = useState<"creator" | "maintainer" | null>(null);
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
-  const [activeTab, setActiveTab] = useState<"settings" | "players">("settings");
+  const [activeTab] = useState<"settings">("settings");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // New player form
-  const [newPlayerName, setNewPlayerName] = useState("");
-  const [newPlayerEmail, setNewPlayerEmail] = useState("");
-  const [newPlayerPhone, setNewPlayerPhone] = useState("");
-  const [newPlayerCarrier, setNewPlayerCarrier] = useState("");
-
-  // Edit player
-  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
@@ -143,54 +135,6 @@ export default function SetupPage() {
     setSaving(false);
   };
 
-  const handleAddPlayer = async () => {
-    if (!newPlayerName.trim()) return;
-    const res = await fetch("/api/players", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newPlayerName.trim(),
-        email: newPlayerEmail.trim() || null,
-        phone: newPlayerPhone.trim() || null,
-        carrier: newPlayerCarrier || null,
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      return alert(err.error);
-    }
-    setNewPlayerName("");
-    setNewPlayerEmail("");
-    setNewPlayerPhone("");
-    setNewPlayerCarrier("");
-    fetchPlayers();
-  };
-
-  const handleUpdatePlayer = async (player: Player) => {
-    await fetch("/api/players", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(player),
-    });
-    setEditingPlayer(null);
-    fetchPlayers();
-  };
-
-  const handleToggleActive = async (player: Player) => {
-    await fetch("/api/players", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: player.id, isActive: !player.isActive }),
-    });
-    fetchPlayers();
-  };
-
-  const handleDeletePlayer = async (id: number) => {
-    if (!confirm("Delete this player? This will remove all their signups and history.")) return;
-    await fetch(`/api/players?id=${id}`, { method: "DELETE" });
-    fetchPlayers();
-  };
-
   // PIN gate
   if (!role) {
     return (
@@ -247,27 +191,6 @@ export default function SetupPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border mb-6">
-        <button
-          onClick={() => setActiveTab("settings")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-            activeTab === "settings" ? "border-primary text-primary" : "border-transparent text-muted hover:text-foreground"
-          }`}
-          title="Configure club name, courts, time slots, and admin PINs"
-        >
-          Settings
-        </button>
-        <button
-          onClick={() => setActiveTab("players")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-            activeTab === "players" ? "border-primary text-primary" : "border-transparent text-muted hover:text-foreground"
-          }`}
-          title="Add, edit, or remove players"
-        >
-          Players ({players.length})
-        </button>
-      </div>
 
       {/* Settings Tab */}
       {activeTab === "settings" && settings && (
@@ -424,174 +347,6 @@ export default function SetupPage() {
         </div>
       )}
 
-      {/* Players Tab */}
-      {activeTab === "players" && (
-        <div>
-          {/* Add player form */}
-          <div className="flex gap-2 mb-4 flex-wrap">
-            <input
-              type="text"
-              value={newPlayerName}
-              onChange={(e) => setNewPlayerName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
-              placeholder="Player name"
-              className="flex-1 min-w-[120px] p-2 rounded-lg border border-border"
-            />
-            <input
-              type="email"
-              value={newPlayerEmail}
-              onChange={(e) => setNewPlayerEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
-              placeholder="Email"
-              className="flex-1 min-w-[120px] p-2 rounded-lg border border-border"
-            />
-            <input
-              type="tel"
-              value={newPlayerPhone}
-              onChange={(e) => setNewPlayerPhone(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
-              placeholder="Phone (10 digits)"
-              className="w-32 p-2 rounded-lg border border-border"
-              title="10-digit phone number for SMS notifications"
-            />
-            <select
-              value={newPlayerCarrier}
-              onChange={(e) => setNewPlayerCarrier(e.target.value)}
-              className="w-32 p-2 rounded-lg border border-border"
-              title="Mobile carrier for SMS gateway"
-            >
-              {CARRIERS.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-            <button
-              onClick={handleAddPlayer}
-              className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover"
-              title="Add a new player to the roster"
-            >
-              Add
-            </button>
-          </div>
-
-          {/* Players list */}
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted-bg">
-                <tr>
-                  <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium">Email</th>
-                  <th className="text-left p-3 font-medium">Phone</th>
-                  <th className="text-left p-3 font-medium">Carrier</th>
-                  <th className="text-center p-3 font-medium">Active</th>
-                  <th className="text-right p-3 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {players.map((player) => (
-                  <tr key={player.id} className="border-t border-border">
-                    {editingPlayer?.id === player.id ? (
-                      <>
-                        <td className="p-2">
-                          <input
-                            type="text"
-                            value={editingPlayer.name}
-                            onChange={(e) => setEditingPlayer({ ...editingPlayer, name: e.target.value })}
-                            className="w-full p-1 rounded border border-border"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="email"
-                            value={editingPlayer.email || ""}
-                            onChange={(e) => setEditingPlayer({ ...editingPlayer, email: e.target.value || null })}
-                            className="w-full p-1 rounded border border-border"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="tel"
-                            value={editingPlayer.phone || ""}
-                            onChange={(e) => setEditingPlayer({ ...editingPlayer, phone: e.target.value || null })}
-                            className="w-full p-1 rounded border border-border"
-                            placeholder="10 digits"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <select
-                            value={editingPlayer.carrier || ""}
-                            onChange={(e) => setEditingPlayer({ ...editingPlayer, carrier: e.target.value || null })}
-                            className="w-full p-1 rounded border border-border"
-                          >
-                            {CARRIERS.map((c) => (
-                              <option key={c.value} value={c.value}>{c.label}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="p-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={editingPlayer.isActive}
-                            onChange={(e) => setEditingPlayer({ ...editingPlayer, isActive: e.target.checked })}
-                          />
-                        </td>
-                        <td className="p-2 text-right space-x-2">
-                          <button onClick={() => handleUpdatePlayer(editingPlayer)} className="text-success font-medium" title="Save changes to this player">Save</button>
-                          <button onClick={() => setEditingPlayer(null)} className="text-muted" title="Discard changes">Cancel</button>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className={`p-3 ${!player.isActive ? "text-muted line-through" : ""}`}>{player.name}</td>
-                        <td className="p-3 text-muted">{player.email || "—"}</td>
-                        <td className="p-3 text-muted">{player.phone || "—"}</td>
-                        <td className="p-3 text-muted">{CARRIERS.find((c) => c.value === player.carrier)?.label || "—"}</td>
-                        <td className="p-3 text-center">
-                          <button onClick={() => handleToggleActive(player)} title={player.isActive ? "Click to deactivate this player" : "Click to reactivate this player"}>
-                            {player.isActive ? (
-                              <span className="text-success">Active</span>
-                            ) : (
-                              <span className="text-muted">Inactive</span>
-                            )}
-                          </button>
-                        </td>
-                        <td className="p-3 text-right space-x-2">
-                          <button onClick={() => setEditingPlayer({ ...player })} className="text-primary" title="Edit this player's name, email, or status">Edit</button>
-                          <button onClick={() => handleDeletePlayer(player.id)} className="text-danger" title="Permanently remove this player">Delete</button>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                ))}
-                {players.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="p-6 text-center text-muted">No players added yet</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Save/Cancel buttons when editing */}
-          {editingPlayer && (
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={() => { handleUpdatePlayer(editingPlayer); setEditingPlayer(null); }}
-                className="px-6 py-2 bg-success text-white rounded-lg font-medium"
-                title="Save changes to the player being edited"
-              >
-                Save Player
-              </button>
-              <button
-                onClick={() => setEditingPlayer(null)}
-                className="px-6 py-2 bg-gray-200 text-foreground rounded-lg font-medium"
-                title="Discard changes"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

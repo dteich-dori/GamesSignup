@@ -8,6 +8,7 @@ import { APP_VERSION } from "@/lib/version";
 const allLinks = [
   { href: "/", label: "Home", roles: ["creator", "maintainer"] },
   { href: "/setup", label: "Setup", roles: ["creator"] },
+  { href: "/players", label: "Players", roles: ["creator"] },
   { href: "/maintenance", label: "Maintenance", roles: ["creator", "maintainer"] },
   { href: "/communications", label: "Communications", roles: ["creator"] },
   { href: "/log", label: "Activity Log", roles: ["creator"] },
