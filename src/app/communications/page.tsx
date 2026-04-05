@@ -63,6 +63,11 @@ export default function CommunicationsPage() {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
 
+  // Auto-message templates
+  const [reminderTemplate, setReminderTemplate] = useState("");
+  const [urgentTemplate, setUrgentTemplate] = useState("");
+  const [autoTemplateSaved, setAutoTemplateSaved] = useState(false);
+
   // History
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -81,6 +86,8 @@ export default function CommunicationsPage() {
       emailTestPhone: data.emailTestPhone || "",
       emailTestCarrier: data.emailTestCarrier || "",
     });
+    setReminderTemplate(data.reminderTemplate || "");
+    setUrgentTemplate(data.urgentTemplate || "");
   }, []);
 
   const fetchRecipients = useCallback(async (group: string) => {
@@ -322,6 +329,53 @@ export default function CommunicationsPage() {
             <p className="text-xs text-muted mt-2">
               Note: Emails are sent from your configured Gmail account. The From Name appears as the sender display name.
             </p>
+          </div>
+
+          {/* Auto-Message Templates */}
+          <div className="bg-card border border-border rounded-lg p-4">
+            <h2 className="text-sm font-semibold mb-3">Automated Message Templates</h2>
+            <p className="text-xs text-muted mb-3">
+              These templates are used for automatic reminders and urgent notices sent the evening before games.
+              Use placeholders: <code className="bg-muted-bg px-1 rounded">{"{date}"}</code> <code className="bg-muted-bg px-1 rounded">{"{court}"}</code> <code className="bg-muted-bg px-1 rounded">{"{time}"}</code> <code className="bg-muted-bg px-1 rounded">{"{players}"}</code> <code className="bg-muted-bg px-1 rounded">{"{count}"}</code> <code className="bg-muted-bg px-1 rounded">{"{max}"}</code>
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium mb-1">Game Reminder (sent for complete games)</label>
+                <textarea
+                  value={reminderTemplate}
+                  onChange={(e) => setReminderTemplate(e.target.value)}
+                  className="w-full p-2 rounded-lg border border-border text-sm min-h-[80px]"
+                  title="Message sent to players in complete games the evening before"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Urgent Notice (sent for incomplete games)</label>
+                <textarea
+                  value={urgentTemplate}
+                  onChange={(e) => setUrgentTemplate(e.target.value)}
+                  className="w-full p-2 rounded-lg border border-border text-sm min-h-[80px]"
+                  title="Message sent to players in incomplete games the evening before"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    await fetch("/api/settings", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ reminderTemplate, urgentTemplate }),
+                    });
+                    setAutoTemplateSaved(true);
+                    setTimeout(() => setAutoTemplateSaved(false), 2000);
+                  }}
+                  className="px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium"
+                  title="Save the automated message templates"
+                >
+                  Save Templates
+                </button>
+                {autoTemplateSaved && <span className="text-success text-sm">Saved!</span>}
+              </div>
+            </div>
           </div>
 
           {/* Compose Form */}

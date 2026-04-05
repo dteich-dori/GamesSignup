@@ -34,6 +34,7 @@ export async function PUT(request: NextRequest) {
     "errorReportEmail", "startDate",
     "emailFromName", "emailReplyTo", "emailTestAddress",
     "emailTestPhone", "emailTestCarrier",
+    "reminderTemplate", "urgentTemplate",
   ];
 
   for (const field of allowedFields) {

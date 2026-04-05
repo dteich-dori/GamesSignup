@@ -20,4 +20,10 @@ export const settings = sqliteTable("settings", {
   emailTestAddress: text("email_test_address").notNull().default(""),
   emailTestPhone: text("email_test_phone").notNull().default(""),
   emailTestCarrier: text("email_test_carrier").notNull().default(""),
+  reminderTemplate: text("reminder_template").notNull().default(
+    "Reminder: You have a game tomorrow ({date}) on Court {court} at {time}. Players: {players}"
+  ),
+  urgentTemplate: text("urgent_template").notNull().default(
+    "URGENT: Tomorrow's game ({date}) on Court {court} at {time} needs more players!\n\nCurrently signed up ({count}/{max}): {players}\n\nPlease help find additional players."
+  ),
 });

@@ -7,6 +7,14 @@ function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
+function applyTemplate(template: string, vars: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, "g"), value);
+  }
+  return result;
+}
+
 /**
  * Send reminder emails to all players signed up for tomorrow's complete games.
  * Also creates in-app notifications.
@@ -46,7 +54,15 @@ export async function sendGameReminders(database: Database) {
     if (slotSignups.length < slot.maxPlayers) continue;
 
     const playerNames = slotSignups.map((s) => s.playerName).join(", ");
-    const message = `Reminder: You have a game tomorrow (${tomorrowStr}) on Court ${slot.courtNumber} at ${slot.timeSlot}. Players: ${playerNames}`;
+    const templateVars = {
+      date: tomorrowStr,
+      court: String(slot.courtNumber),
+      time: slot.timeSlot,
+      players: playerNames,
+      count: String(slotSignups.length),
+      max: String(slot.maxPlayers),
+    };
+    const message = applyTemplate(s.reminderTemplate, templateVars);
     const subjectLine = `Game Reminder: ${tomorrowStr} Court ${slot.courtNumber}`;
 
     // Create in-app notifications
@@ -143,7 +159,15 @@ export async function sendUrgentIncompleteNotices(database: Database) {
     if (slotSignups.length === 0 || slotSignups.length >= slot.maxPlayers) continue;
 
     const playerNames = slotSignups.map((s) => s.playerName).join(", ");
-    const message = `URGENT: Tomorrow's game (${tomorrowStr}) on Court ${slot.courtNumber} at ${slot.timeSlot} needs more players!\n\nCurrently signed up (${slotSignups.length}/${slot.maxPlayers}): ${playerNames}\n\nPlease help find additional players.`;
+    const templateVars = {
+      date: tomorrowStr,
+      court: String(slot.courtNumber),
+      time: slot.timeSlot,
+      players: playerNames,
+      count: String(slotSignups.length),
+      max: String(slot.maxPlayers),
+    };
+    const message = applyTemplate(s.urgentTemplate, templateVars);
     const subjectLine = `URGENT: Tomorrow's game needs players - Court ${slot.courtNumber}`;
 
     // Create in-app notifications
@@ -151,7 +175,7 @@ export async function sendUrgentIncompleteNotices(database: Database) {
       await database.insert(notifications).values({
         playerId: signup.playerId,
         type: "REMINDER",
-        message: `URGENT: Tomorrow's game on Court ${slot.courtNumber} needs more players! (${slotSignups.length}/${slot.maxPlayers})`,
+        message: applyTemplate(s.urgentTemplate, templateVars),
       });
     }
 
