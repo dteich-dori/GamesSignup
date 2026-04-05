@@ -333,9 +333,9 @@ export default function SetupPage() {
                 value={settings.reservationCutoffHours}
                 onChange={(e) => setSettings({ ...settings, reservationCutoffHours: Number(e.target.value) })}
                 className="w-full p-2 rounded-lg border border-border"
-                title="How many hours before a game players can no longer join or withdraw"
+                title="How many hours before a game players can no longer withdraw"
               />
-              <p className="text-xs text-muted mt-1">Players cannot join or withdraw this many hours before game time. Set to 0 to allow changes up to game time.</p>
+              <p className="text-xs text-muted mt-1">Players cannot withdraw from a game within this many hours of game time. Players can always join. Set to 0 to allow withdrawals up to game time.</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Reminder Time (24h)</label>
