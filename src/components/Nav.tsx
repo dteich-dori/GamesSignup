@@ -12,6 +12,7 @@ const allLinks = [
   { href: "/communications", label: "Communications", roles: ["creator"] },
   { href: "/log", label: "Activity Log", roles: ["creator"] },
   { href: "/reports", label: "Reports", roles: ["creator"] },
+  { href: "/guide", label: "Player Guide", roles: ["creator", "maintainer"] },
 ];
 
 export function Nav() {
