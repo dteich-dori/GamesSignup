@@ -32,7 +32,7 @@ export async function sendEmail({
     const result = await resend.emails.send({
       from: `${fromName} <onboarding@resend.dev>`,
       to: [to],
-      reply_to: replyTo || undefined,
+      replyTo: replyTo || undefined,
       subject,
       text,
     });
