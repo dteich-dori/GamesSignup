@@ -321,7 +321,9 @@ export default function SetupPage() {
                 value={settings.reminderTime}
                 onChange={(e) => setSettings({ ...settings, reminderTime: e.target.value })}
                 className="w-full p-2 rounded-lg border border-border"
+                title="Time of day to send email reminders to players about upcoming games"
               />
+              <p className="text-xs text-muted mt-1">Email reminders are sent at this time the day before each game.</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Error Report Email</label>
