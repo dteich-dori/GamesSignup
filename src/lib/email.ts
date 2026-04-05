@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,12 +22,23 @@ export function getSmsGatewayEmail(phone: string, carrier: string): string | nul
   return `${digits}@${domain}`;
 }
 
-export function validateResendKey(): string | null {
-  const key = process.env.RESEND_API_KEY;
-  if (!key || key === "re_your_key") {
-    return "RESEND_API_KEY is not configured";
+export function validateEmailConfig(): string | null {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) {
+    return "GMAIL_USER or GMAIL_APP_PASSWORD is not configured";
   }
   return null;
+}
+
+function createTransport() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
 }
 
 export async function sendEmail({
@@ -43,23 +54,18 @@ export async function sendEmail({
   fromName: string;
   replyTo?: string;
 }): Promise<{ success: boolean; error?: string }> {
-  const keyError = validateResendKey();
-  if (keyError) return { success: false, error: keyError };
-
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const configError = validateEmailConfig();
+  if (configError) return { success: false, error: configError };
 
   try {
-    const result = await resend.emails.send({
-      from: `${fromName} <onboarding@resend.dev>`,
-      to: [to],
+    const transporter = createTransport();
+    await transporter.sendMail({
+      from: `${fromName} <${process.env.GMAIL_USER}>`,
+      to,
       replyTo: replyTo || undefined,
       subject,
       text,
     });
-
-    if (result.error) {
-      return { success: false, error: result.error.message };
-    }
     return { success: true };
   } catch (err) {
     return { success: false, error: String(err) };
@@ -88,9 +94,9 @@ export async function sendBulkEmails(
 ): Promise<BulkResult> {
   const result: BulkResult = { sent: 0, smsSent: 0, errors: [], skipped: [], recipients: [] };
 
-  const keyError = validateResendKey();
-  if (keyError) {
-    result.errors.push(keyError);
+  const configError = validateEmailConfig();
+  if (configError) {
+    result.errors.push(configError);
     return result;
   }
 
@@ -126,9 +132,9 @@ export async function sendBulkSms(
 ): Promise<BulkResult> {
   const result: BulkResult = { sent: 0, smsSent: 0, errors: [], skipped: [], recipients: [] };
 
-  const keyError = validateResendKey();
-  if (keyError) {
-    result.errors.push(keyError);
+  const configError = validateEmailConfig();
+  if (configError) {
+    result.errors.push(configError);
     return result;
   }
 

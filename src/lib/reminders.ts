@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { gameSlots, signups, players, notifications, settings, emailLog } from "@/db/schema";
-import { sendBulkEmails, sendBulkSms, validateResendKey, type Recipient, type SmsRecipient } from "./email";
+import { sendBulkEmails, sendBulkSms, validateEmailConfig, type Recipient, type SmsRecipient } from "./email";
 import type { Database } from "@/db/index";
 
 function formatDate(date: Date): string {
@@ -60,7 +60,7 @@ export async function sendGameReminders(database: Database) {
     }
 
     // Send emails and SMS if Resend is configured
-    if (!validateResendKey()) {
+    if (!validateEmailConfig()) {
       const emailRecipients: Recipient[] = slotSignups
         .filter((s) => s.playerEmail)
         .map((s) => ({ name: s.playerName, email: s.playerEmail! }));
@@ -113,7 +113,7 @@ export async function sendUrgentIncompleteNotices(database: Database) {
   const s = settingsRows[0];
   if (!s) return { urgentNoticesSent: 0 };
 
-  if (validateResendKey()) {
+  if (validateEmailConfig()) {
     // Resend not configured — skip silently
     return { urgentNoticesSent: 0 };
   }

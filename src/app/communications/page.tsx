@@ -320,7 +320,7 @@ export default function CommunicationsPage() {
               {settingsSaved && <span className="text-success text-sm">Saved!</span>}
             </div>
             <p className="text-xs text-muted mt-2">
-              Note: Emails are sent from onboarding@resend.dev (Resend free tier). The From Name appears as the sender display name.
+              Note: Emails are sent from your configured Gmail account. The From Name appears as the sender display name.
             </p>
           </div>
 

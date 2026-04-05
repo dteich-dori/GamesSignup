@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { players, settings, emailLog, activityLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { sendBulkEmails, sendBulkSms, validateResendKey, type Recipient, type SmsRecipient } from "@/lib/email";
+import { sendBulkEmails, sendBulkSms, validateEmailConfig, type Recipient, type SmsRecipient } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const keyError = validateResendKey();
+  const keyError = validateEmailConfig();
   if (keyError) {
     return NextResponse.json({ error: keyError }, { status: 500 });
   }
