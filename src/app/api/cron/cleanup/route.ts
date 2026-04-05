@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
-import { gameSlots, signups, activityLog } from "@/db/schema";
-import { lte, inArray } from "drizzle-orm";
+import { gameSlots, signups, activityLog, settings } from "@/db/schema";
+import { eq, lte, inArray } from "drizzle-orm";
 import { sendGameReminders, sendUrgentIncompleteNotices } from "@/lib/reminders";
 
 // Daily cron: send reminders, send urgent notices, then clean up old slots
@@ -69,7 +69,16 @@ export async function GET(request: NextRequest) {
         }),
       });
 
-      results.cleanup = { deleted: slotIds.length, fromDate: minDate, toDate: maxDate };
+      // Shift start date to tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+      await database
+        .update(settings)
+        .set({ startDate: tomorrowStr })
+        .where(eq(settings.id, 1));
+
+      results.cleanup = { deleted: slotIds.length, fromDate: minDate, toDate: maxDate, newStartDate: tomorrowStr };
     } else {
       results.cleanup = { deleted: 0, message: "No old slots to clean up" };
     }
