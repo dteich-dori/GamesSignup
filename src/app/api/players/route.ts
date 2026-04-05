@@ -11,7 +11,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, email } = body;
+  const { name, email, phone, carrier } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
   const [created] = await database.insert(players).values({
     name: name.trim(),
     email: email?.trim() || null,
+    phone: phone?.trim().replace(/\D/g, "") || null,
+    carrier: carrier || null,
   }).returning();
 
   return NextResponse.json(created, { status: 201 });
@@ -46,6 +48,8 @@ export async function PUT(request: NextRequest) {
 
   if (name !== undefined) updateData.name = name.trim();
   if (email !== undefined) updateData.email = email?.trim() || null;
+  if (body.phone !== undefined) updateData.phone = body.phone?.trim().replace(/\D/g, "") || null;
+  if (body.carrier !== undefined) updateData.carrier = body.carrier || null;
   if (isActive !== undefined) updateData.isActive = isActive;
 
   const [updated] = await database

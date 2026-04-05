@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { gameSlots, signups, players, notifications, settings, emailLog } from "@/db/schema";
-import { sendBulkEmails, validateResendKey, type Recipient } from "./email";
+import { sendBulkEmails, sendBulkSms, validateResendKey, type Recipient, type SmsRecipient } from "./email";
 import type { Database } from "@/db/index";
 
 function formatDate(date: Date): string {
@@ -27,6 +27,7 @@ export async function sendGameReminders(database: Database) {
 
   let remindersSent = 0;
   let emailsSent = 0;
+  let smsSent = 0;
 
   for (const slot of tomorrowSlots) {
     const slotSignups = await database
@@ -34,6 +35,8 @@ export async function sendGameReminders(database: Database) {
         playerId: signups.playerId,
         playerName: players.name,
         playerEmail: players.email,
+        playerPhone: players.phone,
+        playerCarrier: players.carrier,
       })
       .from(signups)
       .innerJoin(players, eq(signups.playerId, players.id))
@@ -44,6 +47,7 @@ export async function sendGameReminders(database: Database) {
 
     const playerNames = slotSignups.map((s) => s.playerName).join(", ");
     const message = `Reminder: You have a game tomorrow (${tomorrowStr}) on Court ${slot.courtNumber} at ${slot.timeSlot}. Players: ${playerNames}`;
+    const subjectLine = `Game Reminder: ${tomorrowStr} Court ${slot.courtNumber}`;
 
     // Create in-app notifications
     for (const signup of slotSignups) {
@@ -55,39 +59,45 @@ export async function sendGameReminders(database: Database) {
       remindersSent++;
     }
 
-    // Send emails if Resend is configured
+    // Send emails and SMS if Resend is configured
     if (!validateResendKey()) {
-      const recipients: Recipient[] = slotSignups
+      const emailRecipients: Recipient[] = slotSignups
         .filter((s) => s.playerEmail)
         .map((s) => ({ name: s.playerName, email: s.playerEmail! }));
 
-      if (recipients.length > 0) {
-        const result = await sendBulkEmails(
-          recipients,
-          `Game Reminder: ${tomorrowStr} Court ${slot.courtNumber}`,
-          message,
-          s.emailFromName,
-          s.emailReplyTo || undefined
-        );
-        emailsSent += result.sent;
+      const smsRecipients: SmsRecipient[] = slotSignups
+        .filter((s) => s.playerPhone && s.playerCarrier)
+        .map((s) => ({ name: s.playerName, phone: s.playerPhone!, carrier: s.playerCarrier! }));
 
-        // Log to email log
-        if (result.sent > 0) {
-          await database.insert(emailLog).values({
-            subject: `Game Reminder: ${tomorrowStr} Court ${slot.courtNumber}`,
-            body: message,
-            recipientGroup: "REMINDER",
-            recipientCount: result.sent,
-            recipientList: result.recipients.join(", "),
-            fromName: s.emailFromName,
-            replyTo: s.emailReplyTo,
-          });
-        }
+      const allRecipientNames: string[] = [];
+
+      if (emailRecipients.length > 0) {
+        const result = await sendBulkEmails(emailRecipients, subjectLine, message, s.emailFromName, s.emailReplyTo || undefined);
+        emailsSent += result.sent;
+        allRecipientNames.push(...result.recipients);
+      }
+
+      if (smsRecipients.length > 0) {
+        const result = await sendBulkSms(smsRecipients, message, s.emailFromName);
+        smsSent += result.smsSent;
+        allRecipientNames.push(...result.recipients);
+      }
+
+      if (allRecipientNames.length > 0) {
+        await database.insert(emailLog).values({
+          subject: subjectLine,
+          body: message,
+          recipientGroup: "REMINDER",
+          recipientCount: allRecipientNames.length,
+          recipientList: allRecipientNames.join(", "),
+          fromName: s.emailFromName,
+          replyTo: s.emailReplyTo,
+        });
       }
     }
   }
 
-  return { remindersSent, emailsSent };
+  return { remindersSent, emailsSent, smsSent };
 }
 
 /**
@@ -114,6 +124,7 @@ export async function sendUrgentIncompleteNotices(database: Database) {
     .where(eq(gameSlots.date, tomorrowStr));
 
   let urgentNoticesSent = 0;
+  let smsSent = 0;
 
   for (const slot of tomorrowSlots) {
     const slotSignups = await database
@@ -121,6 +132,8 @@ export async function sendUrgentIncompleteNotices(database: Database) {
         playerId: signups.playerId,
         playerName: players.name,
         playerEmail: players.email,
+        playerPhone: players.phone,
+        playerCarrier: players.carrier,
       })
       .from(signups)
       .innerJoin(players, eq(signups.playerId, players.id))
@@ -131,6 +144,7 @@ export async function sendUrgentIncompleteNotices(database: Database) {
 
     const playerNames = slotSignups.map((s) => s.playerName).join(", ");
     const message = `URGENT: Tomorrow's game (${tomorrowStr}) on Court ${slot.courtNumber} at ${slot.timeSlot} needs more players!\n\nCurrently signed up (${slotSignups.length}/${slot.maxPlayers}): ${playerNames}\n\nPlease help find additional players.`;
+    const subjectLine = `URGENT: Tomorrow's game needs players - Court ${slot.courtNumber}`;
 
     // Create in-app notifications
     for (const signup of slotSignups) {
@@ -141,34 +155,40 @@ export async function sendUrgentIncompleteNotices(database: Database) {
       });
     }
 
-    // Send emails
-    const recipients: Recipient[] = slotSignups
+    const emailRecipients: Recipient[] = slotSignups
       .filter((s) => s.playerEmail)
       .map((s) => ({ name: s.playerName, email: s.playerEmail! }));
 
-    if (recipients.length > 0) {
-      const result = await sendBulkEmails(
-        recipients,
-        `URGENT: Tomorrow's game needs players - Court ${slot.courtNumber}`,
-        message,
-        s.emailFromName,
-        s.emailReplyTo || undefined
-      );
-      urgentNoticesSent += result.sent;
+    const smsRecipients: SmsRecipient[] = slotSignups
+      .filter((s) => s.playerPhone && s.playerCarrier)
+      .map((s) => ({ name: s.playerName, phone: s.playerPhone!, carrier: s.playerCarrier! }));
 
-      if (result.sent > 0) {
-        await database.insert(emailLog).values({
-          subject: `URGENT: Tomorrow's game needs players - Court ${slot.courtNumber}`,
-          body: message,
-          recipientGroup: "URGENT",
-          recipientCount: result.sent,
-          recipientList: result.recipients.join(", "),
-          fromName: s.emailFromName,
-          replyTo: s.emailReplyTo,
-        });
-      }
+    const allRecipientNames: string[] = [];
+
+    if (emailRecipients.length > 0) {
+      const result = await sendBulkEmails(emailRecipients, subjectLine, message, s.emailFromName, s.emailReplyTo || undefined);
+      urgentNoticesSent += result.sent;
+      allRecipientNames.push(...result.recipients);
+    }
+
+    if (smsRecipients.length > 0) {
+      const result = await sendBulkSms(smsRecipients, message, s.emailFromName);
+      smsSent += result.smsSent;
+      allRecipientNames.push(...result.recipients);
+    }
+
+    if (allRecipientNames.length > 0) {
+      await database.insert(emailLog).values({
+        subject: subjectLine,
+        body: message,
+        recipientGroup: "URGENT",
+        recipientCount: allRecipientNames.length,
+        recipientList: allRecipientNames.join(", "),
+        fromName: s.emailFromName,
+        replyTo: s.emailReplyTo,
+      });
     }
   }
 
-  return { urgentNoticesSent };
+  return { urgentNoticesSent, smsSent };
 }

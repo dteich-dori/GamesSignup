@@ -2,6 +2,26 @@ import { Resend } from "resend";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// SMS gateway domains by carrier
+const SMS_GATEWAYS: Record<string, string> = {
+  verizon: "vtext.com",
+  att: "txt.att.net",
+  tmobile: "tmomail.net",
+  sprint: "messaging.sprintpcs.com",
+  uscellular: "email.uscc.net",
+  boost: "sms.myboostmobile.com",
+  cricket: "sms.cricketwireless.net",
+  metro: "mymetropcs.com",
+};
+
+export function getSmsGatewayEmail(phone: string, carrier: string): string | null {
+  const domain = SMS_GATEWAYS[carrier];
+  if (!domain) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length !== 10) return null;
+  return `${digits}@${domain}`;
+}
+
 export function validateResendKey(): string | null {
   const key = process.env.RESEND_API_KEY;
   if (!key || key === "re_your_key") {
@@ -53,6 +73,7 @@ export interface Recipient {
 
 export interface BulkResult {
   sent: number;
+  smsSent: number;
   errors: string[];
   skipped: string[];
   recipients: string[]; // names of successfully sent
@@ -65,7 +86,7 @@ export async function sendBulkEmails(
   fromName: string,
   replyTo?: string
 ): Promise<BulkResult> {
-  const result: BulkResult = { sent: 0, errors: [], skipped: [], recipients: [] };
+  const result: BulkResult = { sent: 0, smsSent: 0, errors: [], skipped: [], recipients: [] };
 
   const keyError = validateResendKey();
   if (keyError) {
@@ -86,6 +107,50 @@ export async function sendBulkEmails(
       result.recipients.push(r.name);
     } else {
       result.errors.push(`${r.name}: ${sendResult.error}`);
+    }
+  }
+
+  return result;
+}
+
+export interface SmsRecipient {
+  name: string;
+  phone: string;
+  carrier: string;
+}
+
+export async function sendBulkSms(
+  recipients: SmsRecipient[],
+  text: string,
+  fromName: string
+): Promise<BulkResult> {
+  const result: BulkResult = { sent: 0, smsSent: 0, errors: [], skipped: [], recipients: [] };
+
+  const keyError = validateResendKey();
+  if (keyError) {
+    result.errors.push(keyError);
+    return result;
+  }
+
+  for (const r of recipients) {
+    const gatewayEmail = getSmsGatewayEmail(r.phone, r.carrier);
+    if (!gatewayEmail) {
+      result.skipped.push(`${r.name} (invalid phone/carrier: ${r.phone}/${r.carrier})`);
+      continue;
+    }
+
+    // SMS messages should be short — no subject line needed
+    const sendResult = await sendEmail({
+      to: gatewayEmail,
+      subject: fromName,
+      text,
+      fromName,
+    });
+    if (sendResult.success) {
+      result.smsSent++;
+      result.recipients.push(`${r.name} (SMS)`);
+    } else {
+      result.errors.push(`${r.name} (SMS): ${sendResult.error}`);
     }
   }
 

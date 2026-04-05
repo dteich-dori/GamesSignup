@@ -44,6 +44,7 @@ export default function CommunicationsPage() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendSms, setSendSms] = useState(false);
 
   // History
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -129,7 +130,7 @@ export default function CommunicationsPage() {
       const res = await fetch("/api/communications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientGroup, subject, body }),
+        body: JSON.stringify({ recipientGroup, subject, body, sendSms }),
       });
       const data = await res.json();
 
@@ -138,7 +139,9 @@ export default function CommunicationsPage() {
         return;
       }
 
-      let msg = `Email sent to ${data.recipientCount} recipient(s).`;
+      let msg = `Sent: ${data.emailsSent} email(s)`;
+      if (data.smsSent > 0) msg += `, ${data.smsSent} SMS`;
+      msg += ".";
       if (data.warnings?.length) {
         msg += `\n\nWarnings:\n${data.warnings.join("\n")}`;
       }
@@ -291,15 +294,29 @@ export default function CommunicationsPage() {
               />
             </div>
 
-            {/* Send */}
-            <button
-              onClick={handleSend}
-              disabled={sending}
-              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
-              title="Send the email to all selected recipients"
-            >
-              {sending ? "Sending..." : "Send Email"}
-            </button>
+            {/* Send options */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleSend}
+                disabled={sending}
+                className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                title="Send the email (and optionally SMS) to all selected recipients"
+              >
+                {sending ? "Sending..." : "Send"}
+              </button>
+              {recipientGroup !== "Test" && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer" title="Also send as text message to players with phone number and carrier configured">
+                  <input
+                    type="checkbox"
+                    checked={sendSms}
+                    onChange={(e) => setSendSms(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  Also send SMS
+                </label>
+              )}
+            </div>
+            <p className="text-xs text-muted mt-2">SMS uses email-to-text gateways. Players need phone number and carrier set in Setup.</p>
           </div>
         </div>
       )}

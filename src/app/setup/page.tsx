@@ -24,9 +24,23 @@ interface Player {
   id: number;
   name: string;
   email: string | null;
+  phone: string | null;
+  carrier: string | null;
   isActive: boolean;
   createdAt: string;
 }
+
+const CARRIERS = [
+  { value: "", label: "— Carrier —" },
+  { value: "verizon", label: "Verizon" },
+  { value: "att", label: "AT&T" },
+  { value: "tmobile", label: "T-Mobile" },
+  { value: "sprint", label: "Sprint" },
+  { value: "uscellular", label: "US Cellular" },
+  { value: "boost", label: "Boost Mobile" },
+  { value: "cricket", label: "Cricket" },
+  { value: "metro", label: "Metro by T-Mobile" },
+];
 
 export default function SetupPage() {
   const [role, setRole] = useState<"creator" | "maintainer" | null>(null);
@@ -40,6 +54,8 @@ export default function SetupPage() {
   // New player form
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerEmail, setNewPlayerEmail] = useState("");
+  const [newPlayerPhone, setNewPlayerPhone] = useState("");
+  const [newPlayerCarrier, setNewPlayerCarrier] = useState("");
 
   // Edit player
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
@@ -132,7 +148,12 @@ export default function SetupPage() {
     const res = await fetch("/api/players", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newPlayerName.trim(), email: newPlayerEmail.trim() || null }),
+      body: JSON.stringify({
+        name: newPlayerName.trim(),
+        email: newPlayerEmail.trim() || null,
+        phone: newPlayerPhone.trim() || null,
+        carrier: newPlayerCarrier || null,
+      }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -140,6 +161,8 @@ export default function SetupPage() {
     }
     setNewPlayerName("");
     setNewPlayerEmail("");
+    setNewPlayerPhone("");
+    setNewPlayerCarrier("");
     fetchPlayers();
   };
 
@@ -405,14 +428,14 @@ export default function SetupPage() {
       {activeTab === "players" && (
         <div>
           {/* Add player form */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-4 flex-wrap">
             <input
               type="text"
               value={newPlayerName}
               onChange={(e) => setNewPlayerName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
               placeholder="Player name"
-              className="flex-1 p-2 rounded-lg border border-border"
+              className="flex-1 min-w-[120px] p-2 rounded-lg border border-border"
             />
             <input
               type="email"
@@ -420,8 +443,27 @@ export default function SetupPage() {
               onChange={(e) => setNewPlayerEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
               placeholder="Email"
-              className="flex-1 p-2 rounded-lg border border-border"
+              className="flex-1 min-w-[120px] p-2 rounded-lg border border-border"
             />
+            <input
+              type="tel"
+              value={newPlayerPhone}
+              onChange={(e) => setNewPlayerPhone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddPlayer()}
+              placeholder="Phone (10 digits)"
+              className="w-32 p-2 rounded-lg border border-border"
+              title="10-digit phone number for SMS notifications"
+            />
+            <select
+              value={newPlayerCarrier}
+              onChange={(e) => setNewPlayerCarrier(e.target.value)}
+              className="w-32 p-2 rounded-lg border border-border"
+              title="Mobile carrier for SMS gateway"
+            >
+              {CARRIERS.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
             <button
               onClick={handleAddPlayer}
               className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover"
@@ -438,6 +480,8 @@ export default function SetupPage() {
                 <tr>
                   <th className="text-left p-3 font-medium">Name</th>
                   <th className="text-left p-3 font-medium">Email</th>
+                  <th className="text-left p-3 font-medium">Phone</th>
+                  <th className="text-left p-3 font-medium">Carrier</th>
                   <th className="text-center p-3 font-medium">Active</th>
                   <th className="text-right p-3 font-medium">Actions</th>
                 </tr>
@@ -463,6 +507,26 @@ export default function SetupPage() {
                             className="w-full p-1 rounded border border-border"
                           />
                         </td>
+                        <td className="p-2">
+                          <input
+                            type="tel"
+                            value={editingPlayer.phone || ""}
+                            onChange={(e) => setEditingPlayer({ ...editingPlayer, phone: e.target.value || null })}
+                            className="w-full p-1 rounded border border-border"
+                            placeholder="10 digits"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <select
+                            value={editingPlayer.carrier || ""}
+                            onChange={(e) => setEditingPlayer({ ...editingPlayer, carrier: e.target.value || null })}
+                            className="w-full p-1 rounded border border-border"
+                          >
+                            {CARRIERS.map((c) => (
+                              <option key={c.value} value={c.value}>{c.label}</option>
+                            ))}
+                          </select>
+                        </td>
                         <td className="p-2 text-center">
                           <input
                             type="checkbox"
@@ -479,6 +543,8 @@ export default function SetupPage() {
                       <>
                         <td className={`p-3 ${!player.isActive ? "text-muted line-through" : ""}`}>{player.name}</td>
                         <td className="p-3 text-muted">{player.email || "—"}</td>
+                        <td className="p-3 text-muted">{player.phone || "—"}</td>
+                        <td className="p-3 text-muted">{CARRIERS.find((c) => c.value === player.carrier)?.label || "—"}</td>
                         <td className="p-3 text-center">
                           <button onClick={() => handleToggleActive(player)} title={player.isActive ? "Click to deactivate this player" : "Click to reactivate this player"}>
                             {player.isActive ? (

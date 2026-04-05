@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { players, settings, emailLog, activityLog } from "@/db/schema";
-import { eq, and, isNotNull, ne } from "drizzle-orm";
-import { sendBulkEmails, validateResendKey, type Recipient } from "@/lib/email";
+import { eq, and, isNotNull, ne, or } from "drizzle-orm";
+import { sendBulkEmails, sendBulkSms, validateResendKey, type Recipient, type SmsRecipient } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { recipientGroup, subject, body: emailBody } = body;
+  const { recipientGroup, subject, body: emailBody, sendSms } = body;
 
   if (!recipientGroup || !subject || !emailBody) {
     return NextResponse.json(
@@ -30,44 +30,64 @@ export async function POST(request: NextRequest) {
   const fromName = s.emailFromName;
   const replyTo = s.emailReplyTo || undefined;
 
-  // Build recipient list
-  let recipients: Recipient[] = [];
+  // Build recipient lists
+  let emailRecipients: Recipient[] = [];
+  let smsRecipients: SmsRecipient[] = [];
 
   if (recipientGroup === "Test") {
     if (!s.emailTestAddress) {
       return NextResponse.json({ error: "No test email configured in settings" }, { status: 400 });
     }
-    recipients = [{ name: "Test", email: s.emailTestAddress }];
+    emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
   } else {
-    // ALL active players with email
+    // ALL active players
     const playerRows = await database
-      .select({ name: players.name, email: players.email })
+      .select({
+        name: players.name,
+        email: players.email,
+        phone: players.phone,
+        carrier: players.carrier,
+      })
       .from(players)
-      .where(
-        and(
-          eq(players.isActive, true),
-          isNotNull(players.email),
-          ne(players.email, "")
-        )
-      );
-    recipients = playerRows.map((p) => ({ name: p.name, email: p.email! }));
+      .where(eq(players.isActive, true));
+
+    // Email recipients: players with email
+    emailRecipients = playerRows
+      .filter((p) => p.email && p.email.trim())
+      .map((p) => ({ name: p.name, email: p.email! }));
+
+    // SMS recipients: players with phone + carrier
+    if (sendSms) {
+      smsRecipients = playerRows
+        .filter((p) => p.phone && p.carrier)
+        .map((p) => ({ name: p.name, phone: p.phone!, carrier: p.carrier! }));
+    }
   }
 
-  if (recipients.length === 0) {
-    return NextResponse.json({ error: "No recipients with valid emails" }, { status: 400 });
+  if (emailRecipients.length === 0 && smsRecipients.length === 0) {
+    return NextResponse.json({ error: "No recipients found" }, { status: 400 });
   }
 
   // Send emails
-  const result = await sendBulkEmails(recipients, subject, emailBody, fromName, replyTo);
+  const emailResult = await sendBulkEmails(emailRecipients, subject, emailBody, fromName, replyTo);
+
+  // Send SMS
+  let smsResult = { sent: 0, smsSent: 0, errors: [] as string[], skipped: [] as string[], recipients: [] as string[] };
+  if (smsRecipients.length > 0) {
+    smsResult = await sendBulkSms(smsRecipients, emailBody, fromName);
+  }
+
+  const totalSent = emailResult.sent + smsResult.smsSent;
+  const allRecipients = [...emailResult.recipients, ...smsResult.recipients];
 
   // Log to email log
-  if (result.sent > 0) {
+  if (totalSent > 0) {
     await database.insert(emailLog).values({
       subject,
       body: emailBody,
-      recipientGroup,
-      recipientCount: result.sent,
-      recipientList: result.recipients.join(", "),
+      recipientGroup: recipientGroup + (sendSms ? " +SMS" : ""),
+      recipientCount: totalSent,
+      recipientList: allRecipients.join(", "),
       fromName,
       replyTo: s.emailReplyTo,
     });
@@ -78,16 +98,21 @@ export async function POST(request: NextRequest) {
     action: "SEND_EMAIL",
     details: JSON.stringify({
       recipientGroup,
-      recipientCount: result.sent,
+      emailsSent: emailResult.sent,
+      smsSent: smsResult.smsSent,
       subject,
     }),
   });
 
-  const warnings = [...result.skipped, ...result.errors];
+  const warnings = [
+    ...emailResult.skipped, ...emailResult.errors,
+    ...smsResult.skipped, ...smsResult.errors,
+  ];
 
   return NextResponse.json({
     success: true,
-    recipientCount: result.sent,
+    emailsSent: emailResult.sent,
+    smsSent: smsResult.smsSent,
     warnings: warnings.length > 0 ? warnings : undefined,
   });
 }
