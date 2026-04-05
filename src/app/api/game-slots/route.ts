@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { gameSlots, settings, signups, players } from "@/db/schema";
-import { eq, and, gte, lte, lt, asc, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, lt, gt, asc, inArray } from "drizzle-orm";
 
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
@@ -31,6 +31,7 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
 
     const existingCourts = new Set(existing.map((g) => g.courtNumber));
 
+    // Add missing courts
     for (let court = 1; court <= s.courtsAvailable; court++) {
       if (!existingCourts.has(court)) {
         await database.insert(gameSlots).values({
@@ -41,6 +42,18 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
         });
       }
     }
+
+    // Remove excess courts (only if they have no signups)
+    const excessSlots = existing.filter((g) => g.courtNumber > s.courtsAvailable);
+    for (const slot of excessSlots) {
+      const slotSignups = await database
+        .select()
+        .from(signups)
+        .where(eq(signups.gameSlotId, slot.id));
+      if (slotSignups.length === 0) {
+        await database.delete(gameSlots).where(eq(gameSlots.id, slot.id));
+      }
+    }
   }
 }
 
@@ -48,6 +61,30 @@ export async function GET(request: NextRequest) {
   const database = await db();
   const { searchParams } = new URL(request.url);
   const generate = searchParams.get("generate");
+  const checkExcess = searchParams.get("checkExcess");
+
+  // Check if reducing courts would affect slots with signups
+  if (checkExcess) {
+    const maxCourt = Number(checkExcess);
+    const excessSlots = await database
+      .select({ id: gameSlots.id, date: gameSlots.date, courtNumber: gameSlots.courtNumber })
+      .from(gameSlots)
+      .where(gt(gameSlots.courtNumber, maxCourt));
+
+    let slotsWithSignups = 0;
+    for (const slot of excessSlots) {
+      const count = await database
+        .select()
+        .from(signups)
+        .where(eq(signups.gameSlotId, slot.id));
+      if (count.length > 0) slotsWithSignups++;
+    }
+
+    return NextResponse.json({
+      excessSlots: excessSlots.length,
+      slotsWithSignups,
+    });
+  }
 
   if (generate === "true") {
     await autoGenerateSlots(database);

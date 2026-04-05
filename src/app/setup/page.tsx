@@ -103,12 +103,27 @@ export default function SetupPage() {
 
   const handleSaveSettings = async () => {
     if (!settings) return;
+
+    // Check if courts were reduced and if affected slots have signups
+    const checkRes = await fetch(`/api/game-slots?checkExcess=${settings.courtsAvailable}`);
+    const checkData = await checkRes.json();
+
+    if (checkData.slotsWithSignups > 0) {
+      const proceed = confirm(
+        `Warning: Reducing courts will affect ${checkData.slotsWithSignups} game slot(s) that have player signups. ` +
+        `Those slots will be kept until their signups are removed.\n\nContinue?`
+      );
+      if (!proceed) return;
+    }
+
     setSaving(true);
     await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     });
+    // Regenerate slots (will remove empty excess courts)
+    await fetch("/api/game-slots?generate=true");
     setSaving(false);
   };
 
