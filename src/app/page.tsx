@@ -575,8 +575,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* Add to Home Screen instructions */}
+      {/* Footer: guide + home screen instructions */}
       <div className="border-t border-border px-4 py-3 mt-4 text-xs text-muted">
+        <p className="mb-2"><Link href="/guide" className="text-primary font-semibold hover:underline">Player Guide</Link> — How to join games, withdraw, notifications, and more</p>
         <p className="font-semibold text-foreground mb-1">Add to your phone&apos;s home screen:</p>
         <p><strong>iPhone:</strong> Open in Safari &rarr; tap Share &rarr; &quot;Add to Home Screen&quot;</p>
         <p><strong>Android:</strong> Open in Chrome &rarr; tap &#8942; menu &rarr; &quot;Add to Home Screen&quot;</p>
