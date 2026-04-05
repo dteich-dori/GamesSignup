@@ -5,13 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { APP_VERSION } from "@/lib/version";
 
-const links = [
-  { href: "/", label: "Home" },
-  { href: "/setup", label: "Setup" },
-  { href: "/maintenance", label: "Maintenance" },
-  { href: "/communications", label: "Communications" },
-  { href: "/log", label: "Activity Log" },
-  { href: "/reports", label: "Reports" },
+const allLinks = [
+  { href: "/", label: "Home", roles: ["creator", "maintainer"] },
+  { href: "/setup", label: "Setup", roles: ["creator"] },
+  { href: "/maintenance", label: "Maintenance", roles: ["creator", "maintainer"] },
+  { href: "/communications", label: "Communications", roles: ["creator"] },
+  { href: "/log", label: "Activity Log", roles: ["creator"] },
+  { href: "/reports", label: "Reports", roles: ["creator"] },
 ];
 
 export function Nav() {
@@ -41,7 +41,7 @@ export function Nav() {
         <div className="text-lg font-bold">Games Signup</div>
         <div className="text-[10px] text-muted">v{APP_VERSION}</div>
       </div>
-      {links.map((link) => {
+      {allLinks.filter((link) => link.roles.includes(role!)).map((link) => {
         const isActive =
           link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
         return (
