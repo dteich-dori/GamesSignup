@@ -27,13 +27,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "This game is full" }, { status: 400 });
   }
 
-  // Check if player already signed up
+  // Check if player already signed up for this slot
   const existing = await database
     .select()
     .from(signups)
     .where(and(eq(signups.gameSlotId, gameSlotId), eq(signups.playerId, playerId)));
   if (existing.length > 0) {
     return NextResponse.json({ error: "Already signed up for this game" }, { status: 409 });
+  }
+
+  // Check if player already signed up for another game on the same date
+  const sameDaySlots = await database
+    .select({ id: gameSlots.id })
+    .from(gameSlots)
+    .where(eq(gameSlots.date, slot.date));
+  const sameDaySlotIds = sameDaySlots.map((s) => s.id);
+
+  for (const slotId of sameDaySlotIds) {
+    const alreadyOnDay = await database
+      .select()
+      .from(signups)
+      .where(and(eq(signups.gameSlotId, slotId), eq(signups.playerId, playerId)));
+    if (alreadyOnDay.length > 0) {
+      return NextResponse.json({ error: "You are already signed up for another game on this day" }, { status: 409 });
+    }
   }
 
   // Get player name for logging
