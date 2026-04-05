@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
-import { gameSlots, settings, signups, players } from "@/db/schema";
+import { gameSlots, settings, signups, players, activityLog } from "@/db/schema";
 import { eq, and, gte, lte, lt, gt, asc, inArray } from "drizzle-orm";
 
 function formatDate(date: Date): string {
@@ -198,31 +198,63 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const body = await request.json();
-  const { beforeDate } = body;
+  const { fromDate, toDate, source } = body;
 
-  if (!beforeDate) {
-    return NextResponse.json({ error: "beforeDate is required" }, { status: 400 });
-  }
+  // Support legacy "beforeDate" param
+  const beforeDate = body.beforeDate;
 
   const database = await db();
 
-  // Find slots to delete
+  // Build date conditions
+  const conditions = [];
+  if (beforeDate) {
+    conditions.push(lt(gameSlots.date, beforeDate));
+  } else {
+    if (fromDate) conditions.push(gte(gameSlots.date, fromDate));
+    if (toDate) conditions.push(lte(gameSlots.date, toDate));
+  }
+
+  if (conditions.length === 0) {
+    return NextResponse.json({ error: "Date range is required" }, { status: 400 });
+  }
+
+  // Find slots to delete and their date range
   const slotsToDelete = await database
-    .select({ id: gameSlots.id })
+    .select({ id: gameSlots.id, date: gameSlots.date })
     .from(gameSlots)
-    .where(lt(gameSlots.date, beforeDate));
+    .where(conditions.length === 1 ? conditions[0] : and(...conditions));
 
   if (slotsToDelete.length === 0) {
     return NextResponse.json({ deleted: 0 });
   }
 
   const slotIds = slotsToDelete.map((s) => s.id);
+  const dates = slotsToDelete.map((s) => s.date).sort();
+  const minDate = dates[0];
+  const maxDate = dates[dates.length - 1];
 
   // Delete signups for those slots first
   await database.delete(signups).where(inArray(signups.gameSlotId, slotIds));
 
   // Delete the game slots
-  await database.delete(gameSlots).where(lt(gameSlots.date, beforeDate));
+  if (beforeDate) {
+    await database.delete(gameSlots).where(lt(gameSlots.date, beforeDate));
+  } else {
+    await database.delete(gameSlots).where(
+      conditions.length === 1 ? conditions[0] : and(...conditions)
+    );
+  }
 
-  return NextResponse.json({ deleted: slotIds.length });
+  // Log the deletion
+  await database.insert(activityLog).values({
+    action: "DELETE_GAMES",
+    details: JSON.stringify({
+      deleted: slotIds.length,
+      fromDate: minDate,
+      toDate: maxDate,
+      source: source || "manual",
+    }),
+  });
+
+  return NextResponse.json({ deleted: slotIds.length, fromDate: minDate, toDate: maxDate });
 }
