@@ -18,4 +18,6 @@ export const settings = sqliteTable("settings", {
   emailFromName: text("email_from_name").notNull().default("Games Signup"),
   emailReplyTo: text("email_reply_to").notNull().default(""),
   emailTestAddress: text("email_test_address").notNull().default(""),
+  emailTestPhone: text("email_test_phone").notNull().default(""),
+  emailTestCarrier: text("email_test_carrier").notNull().default(""),
 });

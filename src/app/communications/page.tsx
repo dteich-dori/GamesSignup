@@ -6,6 +6,8 @@ interface EmailSettings {
   emailFromName: string;
   emailReplyTo: string;
   emailTestAddress: string;
+  emailTestPhone: string;
+  emailTestCarrier: string;
 }
 
 interface Recipient {
@@ -42,6 +44,8 @@ export default function CommunicationsPage() {
     emailFromName: "Games Signup",
     emailReplyTo: "",
     emailTestAddress: "",
+    emailTestPhone: "",
+    emailTestCarrier: "",
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -74,6 +78,8 @@ export default function CommunicationsPage() {
       emailFromName: data.emailFromName || "Games Signup",
       emailReplyTo: data.emailReplyTo || "",
       emailTestAddress: data.emailTestAddress || "",
+      emailTestPhone: data.emailTestPhone || "",
+      emailTestCarrier: data.emailTestCarrier || "",
     });
   }, []);
 
@@ -272,6 +278,36 @@ export default function CommunicationsPage() {
                   title="Email address used when sending to the Test group"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Test Phone</label>
+                <input
+                  type="tel"
+                  value={emailSettings.emailTestPhone || ""}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, emailTestPhone: e.target.value })}
+                  className="w-full p-2 rounded-lg border border-border text-sm"
+                  placeholder="10 digits"
+                  title="Phone number for testing SMS"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Test Carrier</label>
+                <select
+                  value={emailSettings.emailTestCarrier || ""}
+                  onChange={(e) => setEmailSettings({ ...emailSettings, emailTestCarrier: e.target.value })}
+                  className="w-full p-2 rounded-lg border border-border text-sm"
+                  title="Carrier for testing SMS"
+                >
+                  <option value="">— Carrier —</option>
+                  <option value="verizon">Verizon</option>
+                  <option value="att">AT&T</option>
+                  <option value="tmobile">T-Mobile</option>
+                  <option value="sprint">Sprint</option>
+                  <option value="uscellular">US Cellular</option>
+                  <option value="boost">Boost Mobile</option>
+                  <option value="cricket">Cricket</option>
+                  <option value="metro">Metro by T-Mobile</option>
+                </select>
+              </div>
             </div>
             <div className="mt-3 flex items-center gap-2">
               <button
@@ -346,9 +382,8 @@ export default function CommunicationsPage() {
             </div>
 
             {/* Channel selection */}
-            {recipientGroup !== "Test" && (
-              <div className="mb-3">
-                <label className="block text-xs font-medium mb-1">Send Via</label>
+            <div className="mb-3">
+              <label className="block text-xs font-medium mb-1">Send Via</label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-1.5 text-sm cursor-pointer" title="SMS to players with phone+carrier, email to the rest (no duplicates)">
                     <input type="radio" name="channel" value="both" checked={channel === "both"} onChange={() => setChannel("both")} />
@@ -368,8 +403,7 @@ export default function CommunicationsPage() {
                   {channel === "email" && "All players with email receive an email."}
                   {channel === "sms" && "Players with phone+carrier get text. Players without get email as fallback."}
                 </p>
-              </div>
-            )}
+            </div>
 
             {/* Subject */}
             <div className="mb-3">

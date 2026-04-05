@@ -37,10 +37,29 @@ export async function POST(request: NextRequest) {
   let smsRecipients: SmsRecipient[] = [];
 
   if (recipientGroup === "Test") {
-    if (!s.emailTestAddress) {
-      return NextResponse.json({ error: "No test email configured in settings" }, { status: 400 });
+    const hasTestEmail = !!(s.emailTestAddress);
+    const hasTestSms = !!(s.emailTestPhone && s.emailTestCarrier);
+
+    if (!hasTestEmail && !hasTestSms) {
+      return NextResponse.json({ error: "No test email or phone configured in settings" }, { status: 400 });
     }
-    emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
+
+    if (selectedChannel === "email") {
+      if (hasTestEmail) emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
+    } else if (selectedChannel === "sms") {
+      if (hasTestSms) {
+        smsRecipients = [{ name: "Test", phone: s.emailTestPhone, carrier: s.emailTestCarrier }];
+      } else if (hasTestEmail) {
+        emailRecipients = [{ name: "Test (SMS fallback)", email: s.emailTestAddress }];
+      }
+    } else {
+      // "both": prefer SMS, fall back to email
+      if (hasTestSms) {
+        smsRecipients = [{ name: "Test", phone: s.emailTestPhone, carrier: s.emailTestCarrier }];
+      } else if (hasTestEmail) {
+        emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
+      }
+    }
   } else {
     const playerRows = await database
       .select({

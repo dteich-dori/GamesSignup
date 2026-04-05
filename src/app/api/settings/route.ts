@@ -33,6 +33,7 @@ export async function PUT(request: NextRequest) {
     "creatorPlayerId", "creatorPin", "maintainerPlayerId", "maintainerPin",
     "errorReportEmail", "startDate",
     "emailFromName", "emailReplyTo", "emailTestAddress",
+    "emailTestPhone", "emailTestCarrier",
   ];
 
   for (const field of allowedFields) {
