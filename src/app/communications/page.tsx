@@ -57,6 +57,7 @@ export default function CommunicationsPage() {
   const [body, setBody] = useState("");
   const [channel, setChannel] = useState<"both" | "email" | "sms">("both");
   const [sending, setSending] = useState(false);
+  const [sinceDate, setSinceDate] = useState("");
 
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -90,8 +91,10 @@ export default function CommunicationsPage() {
     setUrgentTemplate(data.urgentTemplate || "");
   }, []);
 
-  const fetchRecipients = useCallback(async (group: string) => {
-    const res = await fetch(`/api/communications/recipients?group=${group}`);
+  const fetchRecipients = useCallback(async (group: string, since?: string) => {
+    const params = new URLSearchParams({ group });
+    if (group === "New" && since) params.set("since", since);
+    const res = await fetch(`/api/communications/recipients?${params}`);
     const data = await res.json();
     setRecipients(data);
   }, []);
@@ -118,9 +121,9 @@ export default function CommunicationsPage() {
 
   useEffect(() => {
     if (role === "creator" || role === "maintainer") {
-      fetchRecipients(recipientGroup);
+      fetchRecipients(recipientGroup, sinceDate);
     }
-  }, [recipientGroup, role, fetchRecipients]);
+  }, [recipientGroup, sinceDate, role, fetchRecipients]);
 
   if (role !== "creator" && role !== "maintainer") {
     return (
@@ -160,7 +163,7 @@ export default function CommunicationsPage() {
       const res = await fetch("/api/communications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientGroup, subject, body, channel }),
+        body: JSON.stringify({ recipientGroup, subject, body, channel, since: recipientGroup === "New" ? sinceDate : undefined }),
       });
       const data = await res.json();
 
@@ -415,8 +418,18 @@ export default function CommunicationsPage() {
                   title="Select which group of players to message"
                 >
                   <option value="ALL">All Players</option>
+                  <option value="New">New Players (since date)</option>
                   <option value="Test">Test (your email)</option>
                 </select>
+                {recipientGroup === "New" && (
+                  <input
+                    type="date"
+                    value={sinceDate}
+                    onChange={(e) => setSinceDate(e.target.value)}
+                    className="p-2 rounded-lg border border-border text-sm"
+                    title="Show only players added after this date"
+                  />
+                )}
                 <span className="text-sm text-muted">{recipients.length} recipient(s)</span>
                 <button
                   onClick={() => setShowRecipients(!showRecipients)}
