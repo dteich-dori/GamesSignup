@@ -15,4 +15,7 @@ export const settings = sqliteTable("settings", {
   maintainerPin: text("maintainer_pin").notNull().default(""),
   errorReportEmail: text("error_report_email"),
   startDate: text("start_date"),
+  emailFromName: text("email_from_name").notNull().default("Games Signup"),
+  emailReplyTo: text("email_reply_to").notNull().default(""),
+  emailTestAddress: text("email_test_address").notNull().default(""),
 });

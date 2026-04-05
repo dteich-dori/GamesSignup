@@ -32,6 +32,7 @@ export async function PUT(request: NextRequest) {
     "daysAhead", "reservationCutoffHours", "reminderTime",
     "creatorPlayerId", "creatorPin", "maintainerPlayerId", "maintainerPin",
     "errorReportEmail", "startDate",
+    "emailFromName", "emailReplyTo", "emailTestAddress",
   ];
 
   for (const field of allowedFields) {
