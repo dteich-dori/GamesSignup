@@ -381,7 +381,7 @@ export default function Home() {
                 const { day, monthDay } = formatDayDate(d);
                 return (
                   <td key={d} className={`border-l-2 border-r-2 border-t-2 border-border p-1 text-center ${
-                    isToday(d) ? "bg-primary text-white" : "bg-muted-bg"
+                    isToday(d) ? "bg-primary text-white" : "bg-yellow-100"
                   }`}>
                     <div className="text-sm font-extrabold text-foreground leading-tight" style={isToday(d) ? { color: "white" } : {}}>
                       {day}
