@@ -380,7 +380,7 @@ export default function Home() {
               {dates.map((d) => {
                 const { day, monthDay } = formatDayDate(d);
                 return (
-                  <td key={d} className={`border-l-2 border-r-2 border-t-2 border-gray-400 p-1 text-center ${
+                  <td key={d} className={`border-l-2 border-r-2 border-t-2 border-border p-1 text-center ${
                     isToday(d) ? "bg-primary text-white" : "bg-muted-bg"
                   }`}>
                     <div className="text-sm font-extrabold text-foreground leading-tight" style={isToday(d) ? { color: "white" } : {}}>
@@ -413,7 +413,7 @@ export default function Home() {
                     const slot = slotMap.get(`${d}-${courtNum}`);
                     const isReserved = !!slot?.reservedCourt;
                     return (
-                      <td key={d} className="border-l-2 border-r-2 border-t-2 border-gray-400 border-b border-border p-0 text-center bg-gray-50">
+                      <td key={d} className="border-l-2 border-r-2 border-t-2 border-border border-b border-border p-0 text-center bg-gray-50">
                         {slot && (
                           <div className="flex items-center justify-center gap-1 px-1 py-1.5">
                             <input
@@ -455,7 +455,7 @@ export default function Home() {
                     const key = `${d}-${courtNum}`;
                     const isEditing = editingTimeKey === key;
                     return (
-                      <td key={d} className="border-l-2 border-r-2 border-gray-400 border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
+                      <td key={d} className="border-l-2 border-r-2 border-border border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
                         {isEditing && slot ? (
                           <input
                             type="text"
@@ -496,7 +496,7 @@ export default function Home() {
                       const slot = slotMap.get(`${d}-${courtNum}`);
                       const isLastRow = playerIdx === maxPlayers - 1;
                       if (!slot) {
-                        return <td key={d} className={`border-l-2 border-r-2 border-gray-400 border-t border-b border-border ${isLastRow ? "border-b-2" : ""} p-0 bg-gray-50`} />;
+                        return <td key={d} className={`border-l-2 border-r-2 border-border border-t border-b border-border ${isLastRow ? "border-b-2" : ""} p-0 bg-gray-50`} />;
                       }
 
                       const signup = slot.signups[playerIdx];
@@ -510,7 +510,7 @@ export default function Home() {
                       return (
                         <td
                           key={d}
-                          className={`border-l-2 border-r-2 border-gray-400 border-t border-b border-border ${isLastRow ? "border-b-2" : ""} p-0 text-center ${
+                          className={`border-l-2 border-r-2 border-border border-t border-b border-border ${isLastRow ? "border-b-2" : ""} p-0 text-center ${
                             datePast ? "bg-gray-100 opacity-60" :
                             isFull ? "bg-success-bg/40" :
                             ""
