@@ -313,7 +313,7 @@ export default function Home() {
               placeholder="PIN"
               autoFocus
               autoComplete="off"
-              className="flex-1 p-2 rounded-lg border border-border text-base"
+              className="w-24 p-2 rounded-lg border border-border text-base"
             />
             <button
               onClick={handlePinSubmit}
