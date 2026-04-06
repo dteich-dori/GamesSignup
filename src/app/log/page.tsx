@@ -66,7 +66,7 @@ export default function LogPage() {
 
   const handleClearBefore = async () => {
     if (!beforeDate) return alert("Please pick a date first");
-    if (!confirm(`Delete all log entries on or before ${beforeDate}?`)) return;
+    if (!confirm(`Delete all log entries before ${beforeDate}? (Entries on ${beforeDate} will be kept.)`)) return;
     const res = await fetch(`/api/activity-log?before=${beforeDate}`, { method: "DELETE" });
     const data = await res.json();
     alert(`Deleted ${data.deleted} entries.`);
@@ -111,9 +111,9 @@ export default function LogPage() {
           <button
             onClick={handleClearBefore}
             className="px-3 py-2 bg-warning text-white rounded-lg text-sm font-medium"
-            title="Delete all log entries on or before the selected date"
+            title="Delete all log entries before the selected date (the date itself is kept)"
           >
-            Clear Through
+            Clear Before
           </button>
           <button
             onClick={handleClearAll}
