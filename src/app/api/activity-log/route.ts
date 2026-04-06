@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { activityLog, players, gameSlots } from "@/db/schema";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -36,4 +36,32 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   return NextResponse.json(logs);
+}
+
+export async function DELETE(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+  const before = searchParams.get("before"); // ISO date — delete entries older than this
+  const all = searchParams.get("all"); // "true" — delete everything
+
+  const database = await db();
+
+  if (id) {
+    await database.delete(activityLog).where(eq(activityLog.id, Number(id)));
+    return NextResponse.json({ deleted: 1 });
+  }
+
+  if (all === "true") {
+    const rows = await database.select({ id: activityLog.id }).from(activityLog);
+    await database.delete(activityLog);
+    return NextResponse.json({ deleted: rows.length });
+  }
+
+  if (before) {
+    const rows = await database.select({ id: activityLog.id }).from(activityLog).where(lt(activityLog.createdAt, before));
+    await database.delete(activityLog).where(lt(activityLog.createdAt, before));
+    return NextResponse.json({ deleted: rows.length });
+  }
+
+  return NextResponse.json({ error: "Specify id, before, or all=true" }, { status: 400 });
 }
