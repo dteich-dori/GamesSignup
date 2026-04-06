@@ -31,7 +31,8 @@ export default function LogPage() {
     const params = new URLSearchParams();
     if (filterAction) params.set("action", filterAction);
     params.set("limit", "200");
-    const res = await fetch(`/api/activity-log?${params}`);
+    params.set("_t", String(Date.now())); // cache buster
+    const res = await fetch(`/api/activity-log?${params}`, { cache: "no-store" });
     const data = await res.json();
     setLogs(data);
     setLoading(false);
