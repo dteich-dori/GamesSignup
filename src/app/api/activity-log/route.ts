@@ -58,9 +58,11 @@ export async function DELETE(request: NextRequest) {
   }
 
   if (before) {
-    const rows = await database.select({ id: activityLog.id }).from(activityLog).where(lt(activityLog.createdAt, before));
-    await database.delete(activityLog).where(lt(activityLog.createdAt, before));
-    return NextResponse.json({ deleted: rows.length });
+    // Treat "before" as the end of the selected day — delete all entries up to and including that day
+    const cutoff = `${before}T23:59:59.999Z`;
+    const rows = await database.select({ id: activityLog.id }).from(activityLog).where(lte(activityLog.createdAt, cutoff));
+    await database.delete(activityLog).where(lte(activityLog.createdAt, cutoff));
+    return NextResponse.json({ deleted: rows.length, cutoff });
   }
 
   return NextResponse.json({ error: "Specify id, before, or all=true" }, { status: 400 });
