@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { players, settings, emailLog, activityLog } from "@/db/schema";
-import { eq, and, gt, isNotNull, ne } from "drizzle-orm";
+import { eq, and, gt, isNotNull, ne, inArray } from "drizzle-orm";
 import { sendBulkEmails, sendBulkSms, validateEmailConfig, type Recipient, type SmsRecipient } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { recipientGroup, subject, body: emailBody, channel, since } = body;
+  const { recipientGroup, subject, body: emailBody, channel, since, playerIds } = body;
   // channel: "email" | "sms" | "both" (default "both")
 
   if (!recipientGroup || !subject || !emailBody) {
@@ -69,6 +69,8 @@ export async function POST(request: NextRequest) {
       .where(
         recipientGroup === "New" && since
           ? and(eq(players.isActive, true), gt(players.createdAt, since))
+          : recipientGroup === "Selected" && Array.isArray(playerIds) && playerIds.length > 0
+          ? and(eq(players.isActive, true), inArray(players.id, playerIds))
           : eq(players.isActive, true)
       );
 

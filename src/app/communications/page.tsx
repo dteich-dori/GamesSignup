@@ -58,6 +58,9 @@ export default function CommunicationsPage() {
   const [channel, setChannel] = useState<"both" | "email" | "sms">("both");
   const [sending, setSending] = useState(false);
   const [sinceDate, setSinceDate] = useState("");
+  const [allPlayers, setAllPlayers] = useState<{ id: number; name: string; email: string | null; phone: string | null; carrier: string | null }[]>([]);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([]);
+  const [showPlayerPicker, setShowPlayerPicker] = useState(false);
 
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -91,12 +94,19 @@ export default function CommunicationsPage() {
     setUrgentTemplate(data.urgentTemplate || "");
   }, []);
 
-  const fetchRecipients = useCallback(async (group: string, since?: string) => {
+  const fetchRecipients = useCallback(async (group: string, since?: string, ids?: number[]) => {
     const params = new URLSearchParams({ group });
     if (group === "New" && since) params.set("since", since);
+    if (group === "Selected" && ids && ids.length > 0) params.set("ids", ids.join(","));
     const res = await fetch(`/api/communications/recipients?${params}`);
     const data = await res.json();
     setRecipients(data);
+  }, []);
+
+  const fetchAllPlayers = useCallback(async () => {
+    const res = await fetch("/api/communications/recipients?group=List");
+    const data = await res.json();
+    setAllPlayers(data);
   }, []);
 
   const fetchHistory = useCallback(async () => {
@@ -116,14 +126,15 @@ export default function CommunicationsPage() {
       fetchSettings();
       fetchHistory();
       fetchTemplates();
+      fetchAllPlayers();
     }
-  }, [role, fetchSettings, fetchHistory, fetchTemplates]);
+  }, [role, fetchSettings, fetchHistory, fetchTemplates, fetchAllPlayers]);
 
   useEffect(() => {
     if (role === "creator" || role === "maintainer") {
-      fetchRecipients(recipientGroup, sinceDate);
+      fetchRecipients(recipientGroup, sinceDate, selectedPlayerIds);
     }
-  }, [recipientGroup, sinceDate, role, fetchRecipients]);
+  }, [recipientGroup, sinceDate, selectedPlayerIds, role, fetchRecipients]);
 
   if (role !== "creator" && role !== "maintainer") {
     return (
@@ -163,7 +174,14 @@ export default function CommunicationsPage() {
       const res = await fetch("/api/communications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientGroup, subject, body, channel, since: recipientGroup === "New" ? sinceDate : undefined }),
+        body: JSON.stringify({
+          recipientGroup,
+          subject,
+          body,
+          channel,
+          since: recipientGroup === "New" ? sinceDate : undefined,
+          playerIds: recipientGroup === "Selected" ? selectedPlayerIds : undefined,
+        }),
       });
       const data = await res.json();
 
@@ -419,6 +437,7 @@ export default function CommunicationsPage() {
                 >
                   <option value="ALL">All Players</option>
                   <option value="New">New Players (since date)</option>
+                  <option value="Selected">Selected Players</option>
                   <option value="Test">Test (your email)</option>
                 </select>
                 {recipientGroup === "New" && (
@@ -429,6 +448,15 @@ export default function CommunicationsPage() {
                     className="p-2 rounded-lg border border-border text-sm"
                     title="Show only players added after this date"
                   />
+                )}
+                {recipientGroup === "Selected" && (
+                  <button
+                    onClick={() => setShowPlayerPicker(!showPlayerPicker)}
+                    className="px-3 py-2 bg-gray-200 text-foreground rounded-lg text-sm font-medium"
+                    title="Choose which players to message"
+                  >
+                    {showPlayerPicker ? "Done" : "Choose Players"} ({selectedPlayerIds.length})
+                  </button>
                 )}
                 <span className="text-sm text-muted">{recipients.length} recipient(s)</span>
                 <button
@@ -444,6 +472,52 @@ export default function CommunicationsPage() {
                   {recipients.map((r, i) => (
                     <div key={i}>{r.name} &lt;{r.email}&gt;</div>
                   ))}
+                </div>
+              )}
+              {recipientGroup === "Selected" && showPlayerPicker && (
+                <div className="mt-2 p-3 bg-card border border-border rounded max-h-64 overflow-y-auto">
+                  <div className="flex gap-2 mb-2 text-xs">
+                    <button
+                      onClick={() => setSelectedPlayerIds(allPlayers.map((p) => p.id))}
+                      className="text-primary hover:underline"
+                      title="Select every player"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onClick={() => setSelectedPlayerIds([])}
+                      className="text-primary hover:underline"
+                      title="Deselect every player"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {allPlayers.map((p) => {
+                      const checked = selectedPlayerIds.includes(p.id);
+                      const hasEmail = !!p.email;
+                      const hasSms = !!(p.phone && p.carrier);
+                      return (
+                        <label key={p.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted-bg/50 px-1 py-0.5 rounded">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPlayerIds([...selectedPlayerIds, p.id]);
+                              } else {
+                                setSelectedPlayerIds(selectedPlayerIds.filter((id) => id !== p.id));
+                              }
+                            }}
+                          />
+                          <span>{p.name}</span>
+                          <span className="text-xs text-muted ml-auto">
+                            {hasEmail && "📧"} {hasSms && "📱"}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
