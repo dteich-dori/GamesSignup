@@ -26,6 +26,7 @@ interface GameSlot {
   maxPlayers: number;
   isLocked: boolean;
   reservedCourt: string | null;
+  isOverflow: boolean;
   signups: Signup[];
 }
 
@@ -401,6 +402,10 @@ export default function Home() {
                 <tr className="bg-muted-bg">
                   <td className="border border-border p-1 text-sm font-extrabold text-center text-foreground" colSpan={dates.length + 1}>
                     Game {courtNum}
+                    {/* Check if any slot for this courtNum is overflow */}
+                    {gameSlots.some((s) => s.courtNumber === courtNum && s.isOverflow) && (
+                      <span className="ml-2 text-xs font-normal text-orange-600">(overflow)</span>
+                    )}
                   </td>
                 </tr>
 

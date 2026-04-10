@@ -8,4 +8,5 @@ export const gameSlots = sqliteTable("game_slots", {
   maxPlayers: integer("max_players").notNull().default(4),
   isLocked: integer("is_locked", { mode: "boolean" }).notNull().default(false),
   reservedCourt: text("reserved_court"),
+  isOverflow: integer("is_overflow", { mode: "boolean" }).notNull().default(false),
 });

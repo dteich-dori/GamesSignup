@@ -43,8 +43,8 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
       }
     }
 
-    // Remove excess courts (only if they have no signups)
-    const excessSlots = existing.filter((g) => g.courtNumber > s.courtsAvailable);
+    // Remove excess courts (only if they have no signups and are NOT overflow slots)
+    const excessSlots = existing.filter((g) => g.courtNumber > s.courtsAvailable && !g.isOverflow);
     for (const slot of excessSlots) {
       const slotSignups = await database
         .select()
@@ -54,6 +54,68 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
         await database.delete(gameSlots).where(eq(gameSlots.id, slot.id));
       }
     }
+  }
+}
+
+/**
+ * Check if overflow slots should be reverted.
+ * If overflowLastSignupDate is null or > 14 days ago, delete all empty overflow slots.
+ */
+async function checkOverflowRevert(database: Awaited<ReturnType<typeof db>>) {
+  // Check if any overflow slots exist at all
+  const overflowSlots = await database
+    .select()
+    .from(gameSlots)
+    .where(eq(gameSlots.isOverflow, true));
+
+  if (overflowSlots.length === 0) return;
+
+  const settingsRows = await database.select().from(settings);
+  if (settingsRows.length === 0) return;
+  const s = settingsRows[0];
+
+  const lastSignup = s.overflowLastSignupDate;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let shouldRevert = false;
+  if (!lastSignup) {
+    // No one has ever signed up for an overflow slot — check if slots are older than 14 days
+    // Use the earliest overflow slot date as the baseline
+    const earliest = overflowSlots.reduce((min, sl) => sl.date < min ? sl.date : min, overflowSlots[0].date);
+    const earliestDate = new Date(earliest + "T00:00:00");
+    const daysSince = Math.floor((today.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24));
+    shouldRevert = daysSince >= 14;
+  } else {
+    const lastDate = new Date(lastSignup + "T00:00:00");
+    const daysSince = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    shouldRevert = daysSince >= 14;
+  }
+
+  if (!shouldRevert) return;
+
+  // Delete empty overflow slots only
+  let deletedCount = 0;
+  for (const slot of overflowSlots) {
+    const slotSignups = await database
+      .select()
+      .from(signups)
+      .where(eq(signups.gameSlotId, slot.id));
+    if (slotSignups.length === 0) {
+      await database.delete(gameSlots).where(eq(gameSlots.id, slot.id));
+      deletedCount++;
+    }
+  }
+
+  if (deletedCount > 0) {
+    await database.update(settings).set({ overflowLastSignupDate: null });
+    await database.insert(activityLog).values({
+      action: "OVERFLOW_DEACTIVATED",
+      details: JSON.stringify({
+        slotsRemoved: deletedCount,
+        reason: "No overflow signups for 14+ days",
+      }),
+    });
   }
 }
 
@@ -88,6 +150,7 @@ export async function GET(request: NextRequest) {
 
   if (generate === "true") {
     await autoGenerateSlots(database);
+    await checkOverflowRevert(database);
   }
 
   const from = searchParams.get("from");

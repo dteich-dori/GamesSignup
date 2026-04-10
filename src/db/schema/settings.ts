@@ -26,4 +26,5 @@ export const settings = sqliteTable("settings", {
   urgentTemplate: text("urgent_template").notNull().default(
     "URGENT: Tomorrow's game ({date}) on Court {court} at {time} needs more players!\n\nCurrently signed up ({count}/{max}): {players}\n\nPlease help find additional players."
   ),
+  overflowLastSignupDate: text("overflow_last_signup_date"),
 });

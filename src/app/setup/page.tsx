@@ -50,6 +50,8 @@ export default function SetupPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [saving, setSaving] = useState(false);
+  const [resettingOverflow, setResettingOverflow] = useState(false);
+  const [overflowMessage, setOverflowMessage] = useState("");
 
 
   const fetchSettings = useCallback(async () => {
@@ -133,6 +135,25 @@ export default function SetupPage() {
     // Regenerate slots (will remove empty excess courts)
     await fetch("/api/game-slots?generate=true");
     setSaving(false);
+  };
+
+  const handleResetOverflow = async () => {
+    if (!confirm("Remove all empty overflow game slots and revert to the configured number of games?")) return;
+    setResettingOverflow(true);
+    setOverflowMessage("");
+    try {
+      const res = await fetch("/api/game-slots/reset-overflow", { method: "POST" });
+      const data = await res.json();
+      if (data.removed > 0) {
+        setOverflowMessage(`Removed ${data.removed} overflow slot${data.removed !== 1 ? "s" : ""}.`);
+      } else {
+        setOverflowMessage("No empty overflow slots to remove.");
+      }
+      setTimeout(() => setOverflowMessage(""), 4000);
+    } catch {
+      setOverflowMessage("Failed to reset overflow.");
+    }
+    setResettingOverflow(false);
   };
 
   // PIN gate
@@ -336,14 +357,27 @@ export default function SetupPage() {
             </div>
           )}
 
-          <button
-            onClick={handleSaveSettings}
-            disabled={saving}
-            className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover disabled:opacity-50"
-            title="Save all settings changes to the database"
-          >
-            {saving ? "Saving..." : "Save Settings"}
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleSaveSettings}
+              disabled={saving}
+              className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover disabled:opacity-50"
+              title="Save all settings changes to the database"
+            >
+              {saving ? "Saving..." : "Save Settings"}
+            </button>
+            <button
+              onClick={handleResetOverflow}
+              disabled={resettingOverflow}
+              className="px-4 py-2 border border-orange-400 text-orange-600 rounded-lg font-medium hover:bg-orange-50 disabled:opacity-50"
+              title="Remove all empty overflow game slots and revert to configured number of games"
+            >
+              {resettingOverflow ? "Resetting..." : "Reset Overflow"}
+            </button>
+            {overflowMessage && (
+              <span className="text-sm text-green-600">{overflowMessage}</span>
+            )}
+          </div>
         </div>
       )}
 

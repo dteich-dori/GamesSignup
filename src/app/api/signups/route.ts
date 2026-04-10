@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
-import { signups, gameSlots, players, activityLog, notifications } from "@/db/schema";
+import { signups, gameSlots, players, activityLog, notifications, settings } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
@@ -72,6 +72,45 @@ export async function POST(request: NextRequest) {
       court: slot.courtNumber,
     }),
   });
+
+  // --- Overflow: track last signup date when joining an overflow slot ---
+  if (slot.isOverflow) {
+    const today = new Date().toISOString().slice(0, 10);
+    await database.update(settings).set({ overflowLastSignupDate: today });
+  }
+
+  // --- Overflow: check if ALL slots on this date are now full ---
+  const allDaySlots = await database.select().from(gameSlots).where(eq(gameSlots.date, slot.date));
+  let allFull = true;
+  for (const daySlot of allDaySlots) {
+    const count = await database.select().from(signups).where(eq(signups.gameSlotId, daySlot.id));
+    if (count.length < daySlot.maxPlayers) {
+      allFull = false;
+      break;
+    }
+  }
+
+  if (allFull) {
+    const maxCourt = Math.max(...allDaySlots.map((s) => s.courtNumber));
+    const [overflowSlot] = await database.insert(gameSlots).values({
+      date: slot.date,
+      courtNumber: maxCourt + 1,
+      timeSlot: slot.timeSlot,
+      maxPlayers: slot.maxPlayers,
+      isOverflow: true,
+    }).returning();
+
+    await database.insert(activityLog).values({
+      action: "OVERFLOW_SLOT_CREATED",
+      playerId,
+      gameSlotId: overflowSlot.id,
+      details: JSON.stringify({
+        date: slot.date,
+        court: maxCourt + 1,
+        trigger: `All ${allDaySlots.length} games full`,
+      }),
+    });
+  }
 
   return NextResponse.json(created, { status: 201 });
 }
