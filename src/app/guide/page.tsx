@@ -93,7 +93,7 @@ export default function PlayerGuidePage() {
           <h2 className="text-lg font-semibold mb-2">Tips</h2>
           <ul className="list-disc list-inside space-y-1">
             <li>The grid auto-refreshes every 30 seconds</li>
-            <li>Your player selection is saved — you don&apos;t need to pick your name each time</li>
+            <li>Your player selection automatically resets after a period of inactivity — just re-select your name to continue</li>
             <li>If you have questions, contact your club administrator</li>
           </ul>
         </section>
