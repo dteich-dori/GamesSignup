@@ -32,6 +32,7 @@ export default function PlayersPage() {
   const [newPlayerPhone, setNewPlayerPhone] = useState("");
   const [newPlayerCarrier, setNewPlayerCarrier] = useState("");
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     setRole(sessionStorage.getItem("setupRole"));
@@ -107,7 +108,20 @@ export default function PlayersPage() {
 
   return (
     <div className="max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">Players</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Players</h1>
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+            showAll
+              ? "bg-primary text-white border-primary"
+              : "bg-white text-foreground border-border hover:bg-gray-50"
+          }`}
+          title={showAll ? "Show only active players" : "Show all players including inactive"}
+        >
+          {showAll ? "Showing All" : "Show Inactive"}
+        </button>
+      </div>
 
       {/* Add/Edit player form */}
       <div className={`flex gap-2 mb-4 flex-wrap p-3 rounded-lg border ${editingPlayer ? "border-primary bg-blue-50" : "border-border"}`}>
@@ -231,7 +245,7 @@ export default function PlayersPage() {
             </tr>
           </thead>
           <tbody>
-            {players.map((player) => (
+            {players.filter((p) => showAll || p.isActive).map((player) => (
               <tr key={player.id} className={`border-t border-border ${editingPlayer?.id === player.id ? "bg-blue-50" : ""}`}>
                 <td className={`p-3 ${!player.isActive ? "text-muted line-through" : ""}`}>{player.name}</td>
                 <td className="p-3 text-muted">{player.email || "—"}</td>
@@ -252,9 +266,11 @@ export default function PlayersPage() {
                 </td>
               </tr>
             ))}
-            {players.length === 0 && (
+            {players.filter((p) => showAll || p.isActive).length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-muted">No players added yet</td>
+                <td colSpan={6} className="p-6 text-center text-muted">
+                  {players.length === 0 ? "No players added yet" : "No active players"}
+                </td>
               </tr>
             )}
           </tbody>
