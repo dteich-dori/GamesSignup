@@ -27,4 +27,5 @@ export const settings = sqliteTable("settings", {
     "URGENT: Tomorrow's game ({date}) on Court {court} at {time} needs more players!\n\nCurrently signed up ({count}/{max}): {players}\n\nPlease help find additional players."
   ),
   overflowLastSignupDate: text("overflow_last_signup_date"),
+  dropdownResetSeconds: integer("dropdown_reset_seconds").notNull().default(30),
 });

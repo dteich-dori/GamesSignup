@@ -18,6 +18,7 @@ interface Settings {
   maintainerPin: string;
   errorReportEmail: string | null;
   startDate: string | null;
+  dropdownResetSeconds: number;
 }
 
 interface Player {
@@ -301,6 +302,19 @@ export default function SetupPage() {
                 className="w-full p-2 rounded-lg border border-border"
                 placeholder="maintainer@email.com"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Dropdown Reset (seconds)</label>
+              <input
+                type="number"
+                min={0}
+                max={300}
+                value={settings.dropdownResetSeconds}
+                onChange={(e) => setSettings({ ...settings, dropdownResetSeconds: Number(e.target.value) })}
+                className="w-full p-2 rounded-lg border border-border"
+                title="Seconds before the player dropdown resets to default after selection"
+              />
+              <p className="text-xs text-muted mt-1">Player dropdown resets after this many seconds. Set to 0 to disable.</p>
             </div>
           </div>
 

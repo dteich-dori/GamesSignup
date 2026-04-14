@@ -46,6 +46,7 @@ interface Settings {
   creatorPlayerId: number | null;
   maintainerPlayerId: number | null;
   startDate: string | null;
+  dropdownResetSeconds: number;
 }
 
 export default function Home() {
@@ -122,6 +123,18 @@ export default function Home() {
       }
     }
   }, [selectedPlayerId, settings]);
+
+  // Auto-reset dropdown after configured timeout
+  useEffect(() => {
+    if (!selectedPlayerId || !settings?.dropdownResetSeconds) return;
+    const timeout = setTimeout(() => {
+      setSelectedPlayerId(null);
+      localStorage.removeItem("selectedPlayerId");
+      sessionStorage.removeItem("setupRole");
+      window.dispatchEvent(new Event("storage"));
+    }, settings.dropdownResetSeconds * 1000);
+    return () => clearTimeout(timeout);
+  }, [selectedPlayerId, settings?.dropdownResetSeconds]);
 
   useEffect(() => {
     const interval = setInterval(fetchGameSlots, 30000);

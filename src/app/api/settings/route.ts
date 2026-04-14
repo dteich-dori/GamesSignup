@@ -35,6 +35,7 @@ export async function PUT(request: NextRequest) {
     "emailFromName", "emailReplyTo", "emailTestAddress",
     "emailTestPhone", "emailTestCarrier",
     "reminderTemplate", "urgentTemplate",
+    "dropdownResetSeconds",
   ];
 
   for (const field of allowedFields) {
