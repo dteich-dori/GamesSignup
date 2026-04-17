@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
-import { gameSlots, signups, activityLog, settings } from "@/db/schema";
-import { eq, lte, inArray } from "drizzle-orm";
+import { gameSlots, signups, activityLog, settings, gameStats } from "@/db/schema";
+import { eq, lte, inArray, sql, count } from "drizzle-orm";
 import { sendGameReminders, sendUrgentIncompleteNotices } from "@/lib/reminders";
 
 // Daily cron: send reminders, send urgent notices, then clean up old slots
@@ -55,6 +55,45 @@ export async function GET(request: NextRequest) {
       const dates = slotsToDelete.map((s) => s.date).sort();
       const minDate = dates[0];
       const maxDate = dates[dates.length - 1];
+
+      // Snapshot game completion stats before deleting
+      try {
+        const slotCounts = await database
+          .select({
+            slotId: gameSlots.id,
+            signupCount: count(signups.id),
+          })
+          .from(gameSlots)
+          .leftJoin(signups, eq(gameSlots.id, signups.gameSlotId))
+          .where(inArray(gameSlots.id, slotIds))
+          .groupBy(gameSlots.id);
+
+        const buckets = { g0: 0, g1: 0, g2: 0, g3: 0, g4: 0 };
+        for (const row of slotCounts) {
+          const n = Math.min(row.signupCount, 4);
+          if (n === 0) buckets.g0++;
+          else if (n === 1) buckets.g1++;
+          else if (n === 2) buckets.g2++;
+          else if (n === 3) buckets.g3++;
+          else buckets.g4++;
+        }
+
+        await database
+          .update(gameStats)
+          .set({
+            games0: sql`${gameStats.games0} + ${buckets.g0}`,
+            games1: sql`${gameStats.games1} + ${buckets.g1}`,
+            games2: sql`${gameStats.games2} + ${buckets.g2}`,
+            games3: sql`${gameStats.games3} + ${buckets.g3}`,
+            games4: sql`${gameStats.games4} + ${buckets.g4}`,
+            lastUpdated: new Date().toISOString(),
+          })
+          .where(eq(gameStats.id, 1));
+
+        results.gameStats = buckets;
+      } catch (statsErr) {
+        results.gameStats = { error: String(statsErr) };
+      }
 
       await database.delete(signups).where(inArray(signups.gameSlotId, slotIds));
       await database.delete(gameSlots).where(lte(gameSlots.date, today));

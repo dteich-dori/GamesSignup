@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
-import { signups, players, gameSlots, activityLog } from "@/db/schema";
+import { signups, players, gameSlots, activityLog, gameStats } from "@/db/schema";
 import { eq, and, gte, lte, sql, count } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -74,6 +74,17 @@ export async function GET(request: NextRequest) {
       .orderBy(gameSlots.date, gameSlots.courtNumber);
 
     return NextResponse.json(results);
+  }
+
+  if (type === "game-completion") {
+    const rows = await database.select().from(gameStats);
+    if (rows.length === 0) {
+      return NextResponse.json({
+        games0: 0, games1: 0, games2: 0, games3: 0, games4: 0,
+        lastUpdated: null,
+      });
+    }
+    return NextResponse.json(rows[0]);
   }
 
   return NextResponse.json({ error: "Unknown report type" }, { status: 400 });

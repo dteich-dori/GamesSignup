@@ -6,3 +6,4 @@ export { activityLog } from "./activityLog";
 export { notifications } from "./notifications";
 export { emailLog } from "./emailLog";
 export { emailTemplates } from "./emailTemplates";
+export { gameStats } from "./gameStats";

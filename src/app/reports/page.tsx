@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
-type ReportType = "player-frequency" | "cancellation-rate" | "court-utilization";
+type ReportType = "player-frequency" | "cancellation-rate" | "court-utilization" | "game-completion";
 
 interface FrequencyRow {
   playerId: number;
@@ -22,6 +22,15 @@ interface UtilizationRow {
   courtNumber: number;
   signupCount: number;
   maxPlayers: number;
+}
+
+interface GameCompletionData {
+  games0: number;
+  games1: number;
+  games2: number;
+  games3: number;
+  games4: number;
+  lastUpdated: string | null;
 }
 
 export default function ReportsPage() {
@@ -67,6 +76,7 @@ export default function ReportsPage() {
           <option value="player-frequency">Games per Player</option>
           <option value="cancellation-rate">Cancellation Rate</option>
           <option value="court-utilization">Court Utilization</option>
+          <option value="game-completion">Game Completion</option>
         </select>
         <input
           type="date"
@@ -167,6 +177,52 @@ export default function ReportsPage() {
               </tbody>
             </table>
           )}
+
+          {reportType === "game-completion" && (() => {
+            const d = data as unknown as GameCompletionData;
+            const rows = [
+              { label: "0 players", count: d.games0 ?? 0 },
+              { label: "1 player", count: d.games1 ?? 0 },
+              { label: "2 players", count: d.games2 ?? 0 },
+              { label: "3 players", count: d.games3 ?? 0 },
+              { label: "4 players (full)", count: d.games4 ?? 0 },
+            ];
+            const total = rows.reduce((s, r) => s + r.count, 0);
+            return (
+              <div>
+                <table className="w-full text-sm">
+                  <thead className="bg-muted-bg">
+                    <tr>
+                      <th className="text-left p-3 font-medium">Players</th>
+                      <th className="text-right p-3 font-medium">Games</th>
+                      <th className="text-right p-3 font-medium">% of Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.label} className="border-t border-border">
+                        <td className="p-3">{row.label}</td>
+                        <td className="p-3 text-right font-mono">{row.count}</td>
+                        <td className="p-3 text-right font-mono">
+                          {total > 0 ? Math.round((row.count / total) * 100) : 0}%
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-border bg-muted-bg font-semibold">
+                      <td className="p-3">Total</td>
+                      <td className="p-3 text-right font-mono">{total}</td>
+                      <td className="p-3 text-right font-mono">100%</td>
+                    </tr>
+                  </tbody>
+                </table>
+                {d.lastUpdated && (
+                  <p className="text-xs text-muted mt-2 px-3">
+                    Last updated: {new Date(d.lastUpdated).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
