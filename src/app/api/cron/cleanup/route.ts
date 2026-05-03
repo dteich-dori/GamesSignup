@@ -95,6 +95,13 @@ export async function GET(request: NextRequest) {
         results.gameStats = { error: String(statsErr) };
       }
 
+      // Count signups before deleting so the log shows real player events removed
+      const signupsToDelete = await database
+        .select({ id: signups.id })
+        .from(signups)
+        .where(inArray(signups.gameSlotId, slotIds));
+      const signupsCount = signupsToDelete.length;
+
       await database.delete(signups).where(inArray(signups.gameSlotId, slotIds));
       await database.delete(gameSlots).where(lte(gameSlots.date, today));
 
@@ -102,6 +109,7 @@ export async function GET(request: NextRequest) {
         action: "DELETE_GAMES",
         details: JSON.stringify({
           deleted: slotIds.length,
+          signupsDeleted: signupsCount,
           fromDate: minDate,
           toDate: maxDate,
           source: "auto-cleanup",

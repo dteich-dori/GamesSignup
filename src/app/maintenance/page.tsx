@@ -9,6 +9,14 @@ interface DeleteLogEntry {
   createdAt: string;
 }
 
+interface DeleteLogDetails {
+  deleted: number;
+  signupsDeleted?: number;
+  fromDate: string;
+  toDate: string;
+  source?: string;
+}
+
 export default function MaintenancePage() {
   const [role, setRole] = useState<string | null>(null);
   const [fromDate, setFromDate] = useState("");
@@ -155,25 +163,43 @@ export default function MaintenancePage() {
         {deleteLogs.length === 0 ? (
           <p className="text-sm text-muted">No deletions recorded yet.</p>
         ) : (
+          <>
           <div className="space-y-2">
             {deleteLogs.map((log) => {
-              const details = JSON.parse(log.details);
+              const details: DeleteLogDetails = JSON.parse(log.details);
+              const sigs = details.signupsDeleted;
+              const isAuto = (details.source || "manual") === "auto-cleanup";
               return (
-                <div key={log.id} className="flex justify-between items-center text-sm border-b border-border pb-2">
+                <div key={log.id} className="flex justify-between items-start text-sm border-b border-border pb-2">
                   <div>
-                    <span className="font-medium">{details.deleted} slot(s) deleted</span>
-                    <span className="text-muted ml-2">
-                      {details.fromDate} &rarr; {details.toDate}
-                    </span>
+                    <div>
+                      <span className="font-medium">{details.deleted} empty slot(s) removed</span>
+                      {typeof sigs === "number" && (
+                        <span className={`ml-2 ${sigs > 0 ? "text-warning font-medium" : "text-muted"}`}>
+                          ({sigs} player signup{sigs === 1 ? "" : "s"} removed)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted mt-0.5">
+                      Dates: {details.fromDate} &rarr; {details.toDate}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted text-right">
-                    <div>{new Date(log.createdAt).toLocaleDateString()}</div>
-                    <div className="capitalize">{details.source || "manual"}</div>
+                  <div className="text-xs text-muted text-right whitespace-nowrap">
+                    <div>{new Date(log.createdAt).toLocaleString()}</div>
+                    <div className={`capitalize ${isAuto ? "text-primary" : ""}`}>
+                      {isAuto ? "auto-cleanup" : "manual"}
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
+          <p className="text-xs text-muted mt-3">
+            <strong>Empty slot:</strong> the empty container created for each court each day, regardless of whether anyone signed up. {" "}
+            <strong>Player signup:</strong> a real signup that got removed when its slot was deleted.
+            Auto-cleanup runs every evening to clear the day&apos;s old slots.
+          </p>
+          </>
         )}
       </div>
     </div>

@@ -308,6 +308,14 @@ export async function DELETE(request: NextRequest) {
   const minDate = dates[0];
   const maxDate = dates[dates.length - 1];
 
+  // Count signups attached to these slots BEFORE deleting, so we can log
+  // how many real player events were affected.
+  const signupsToDelete = await database
+    .select({ id: signups.id })
+    .from(signups)
+    .where(inArray(signups.gameSlotId, slotIds));
+  const signupsCount = signupsToDelete.length;
+
   // Delete signups for those slots first
   await database.delete(signups).where(inArray(signups.gameSlotId, slotIds));
 
@@ -321,11 +329,17 @@ export async function DELETE(request: NextRequest) {
     action: "DELETE_GAMES",
     details: JSON.stringify({
       deleted: slotIds.length,
+      signupsDeleted: signupsCount,
       fromDate: minDate,
       toDate: maxDate,
       source: source || "manual",
     }),
   });
 
-  return NextResponse.json({ deleted: slotIds.length, fromDate: minDate, toDate: maxDate });
+  return NextResponse.json({
+    deleted: slotIds.length,
+    signupsDeleted: signupsCount,
+    fromDate: minDate,
+    toDate: maxDate,
+  });
 }
