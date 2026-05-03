@@ -31,8 +31,18 @@ export default function MaintenancePage() {
   const fetchDeleteLogs = async () => {
     const res = await fetch("/api/activity-log?action=DELETE_GAMES");
     if (res.ok) {
-      const data = await res.json();
-      setDeleteLogs(data);
+      const data: DeleteLogEntry[] = await res.json();
+      // Hide entries that didn't remove any actual player signups — that's
+      // mostly the nightly auto-cleanup of empty slots, which is just noise.
+      const meaningful = data.filter((log) => {
+        try {
+          const d = JSON.parse(log.details) as DeleteLogDetails;
+          return typeof d.signupsDeleted === "number" && d.signupsDeleted > 0;
+        } catch {
+          return false;
+        }
+      });
+      setDeleteLogs(meaningful);
     }
   };
 
@@ -161,7 +171,7 @@ export default function MaintenancePage() {
       <div className="bg-card border border-border rounded-lg p-6">
         <h2 className="text-lg font-semibold mb-4">Deletion Log</h2>
         {deleteLogs.length === 0 ? (
-          <p className="text-sm text-muted">No deletions recorded yet.</p>
+          <p className="text-sm text-muted">No deletions of player signups recorded.</p>
         ) : (
           <>
           <div className="space-y-2">
@@ -195,9 +205,7 @@ export default function MaintenancePage() {
             })}
           </div>
           <p className="text-xs text-muted mt-3">
-            <strong>Empty slot:</strong> the empty container created for each court each day, regardless of whether anyone signed up. {" "}
-            <strong>Player signup:</strong> a real signup that got removed when its slot was deleted.
-            Auto-cleanup runs every evening to clear the day&apos;s old slots.
+            Only shows deletions that removed actual player signups. The nightly auto-cleanup of empty slots is hidden.
           </p>
           </>
         )}
