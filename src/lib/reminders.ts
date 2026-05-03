@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { gameSlots, signups, players, notifications, settings, emailLog } from "@/db/schema";
 import { sendBulkEmails, sendBulkSms, validateEmailConfig, type Recipient, type SmsRecipient } from "./email";
 import type { Database } from "@/db/index";
@@ -215,4 +215,115 @@ export async function sendUrgentIncompleteNotices(database: Database) {
   }
 
   return { urgentNoticesSent, smsSent };
+}
+
+/**
+ * Send a reminder to players in tomorrow's *complete* games when no physical
+ * court has been reserved yet (the Court # checkbox is unchecked / reservedCourt
+ * is null). Reaches each player by their preferred channel — SMS if phone +
+ * carrier are configured, otherwise email.
+ */
+export async function sendCourtReservationReminders(database: Database) {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = formatDate(tomorrow);
+
+  const settingsRows = await database.select().from(settings);
+  const s = settingsRows[0];
+  if (!s) return { courtReminderRemindersSent: 0, emailsSent: 0, smsSent: 0 };
+
+  if (validateEmailConfig()) {
+    return { courtReminderRemindersSent: 0, emailsSent: 0, smsSent: 0 };
+  }
+
+  const tomorrowSlots = await database
+    .select()
+    .from(gameSlots)
+    .where(eq(gameSlots.date, tomorrowStr));
+
+  let courtReminderRemindersSent = 0;
+  let emailsSent = 0;
+  let smsSent = 0;
+
+  for (const slot of tomorrowSlots) {
+    // Only complete games where the court hasn't been reserved yet
+    const reservation = (slot.reservedCourt || "").trim();
+    if (reservation) continue; // already reserved — skip
+
+    // Order signups so the FIRST player to sign up is the one we notify.
+    // Only one person needs to physically reserve the court.
+    const slotSignups = await database
+      .select({
+        playerId: signups.playerId,
+        playerName: players.name,
+        playerEmail: players.email,
+        playerPhone: players.phone,
+        playerCarrier: players.carrier,
+        signedUpAt: signups.signedUpAt,
+      })
+      .from(signups)
+      .innerJoin(players, eq(signups.playerId, players.id))
+      .where(eq(signups.gameSlotId, slot.id))
+      .orderBy(asc(signups.signedUpAt), asc(signups.id));
+
+    if (slotSignups.length < slot.maxPlayers) continue; // game not full — skip
+
+    const allPlayerNames = slotSignups.map((p) => p.playerName).join(", ");
+    const firstPlayer = slotSignups[0];
+
+    const templateVars = {
+      date: tomorrowStr,
+      court: String(slot.courtNumber),
+      time: slot.timeSlot,
+      players: allPlayerNames,
+      count: String(slotSignups.length),
+      max: String(slot.maxPlayers),
+    };
+    const message = applyTemplate(s.courtReservationTemplate, templateVars);
+    const subjectLine = `Reserve a court — Tomorrow ${tomorrowStr}, Court ${slot.courtNumber}`;
+
+    // In-app notification ONLY for the first player (the one being asked to reserve)
+    await database.insert(notifications).values({
+      playerId: firstPlayer.playerId,
+      type: "REMINDER",
+      message,
+    });
+    courtReminderRemindersSent++;
+
+    const emailRecipients: Recipient[] = firstPlayer.playerEmail
+      ? [{ name: firstPlayer.playerName, email: firstPlayer.playerEmail }]
+      : [];
+
+    const smsRecipients: SmsRecipient[] = firstPlayer.playerPhone && firstPlayer.playerCarrier
+      ? [{ name: firstPlayer.playerName, phone: firstPlayer.playerPhone, carrier: firstPlayer.playerCarrier }]
+      : [];
+
+    const allRecipientNames: string[] = [];
+
+    if (emailRecipients.length > 0) {
+      const result = await sendBulkEmails(emailRecipients, subjectLine, message, s.emailFromName, s.emailReplyTo || undefined);
+      emailsSent += result.sent;
+      allRecipientNames.push(...result.recipients);
+    }
+
+    if (smsRecipients.length > 0) {
+      const result = await sendBulkSms(smsRecipients, message, s.emailFromName);
+      smsSent += result.smsSent;
+      allRecipientNames.push(...result.recipients);
+    }
+
+    if (allRecipientNames.length > 0) {
+      await database.insert(emailLog).values({
+        subject: subjectLine,
+        body: message,
+        recipientGroup: "COURT_RESERVATION",
+        recipientCount: allRecipientNames.length,
+        recipientList: allRecipientNames.join(", "),
+        fromName: s.emailFromName,
+        replyTo: s.emailReplyTo,
+      });
+    }
+  }
+
+  return { courtReminderRemindersSent, emailsSent, smsSent };
 }

@@ -37,6 +37,8 @@ export async function GET() {
 
     const isComplete = slotSignups.length >= slot.maxPlayers;
     const isIncomplete = slotSignups.length > 0 && slotSignups.length < slot.maxPlayers;
+    const courtReserved = !!(slot.reservedCourt && slot.reservedCourt.trim());
+    const needsCourtReservationNudge = isComplete && !courtReserved;
 
     const playerNames = slotSignups.map((p) => p.playerName).join(", ");
     const templateVars: Record<string, string> = {
@@ -56,19 +58,31 @@ export async function GET() {
       previewMessage = s.urgentTemplate.replace(/\{(\w+)\}/g, (_, key) => templateVars[key] || `{${key}}`);
     }
 
+    let courtReservationPreview: string | undefined;
+    if (needsCourtReservationNudge && s?.courtReservationTemplate) {
+      courtReservationPreview = s.courtReservationTemplate.replace(/\{(\w+)\}/g, (_, key) => templateVars[key] || `{${key}}`);
+    }
+
+    let status = isComplete ? "COMPLETE → would send REMINDER" :
+                 isIncomplete ? "INCOMPLETE → would send URGENT notice" :
+                 "EMPTY → no action";
+    if (needsCourtReservationNudge) {
+      status += " + COURT NOT RESERVED → would send court reservation reminder";
+    }
+
     slotDetails.push({
       court: slot.courtNumber,
       time: slot.timeSlot,
+      reservedCourt: slot.reservedCourt || null,
       players: slotSignups.map((p) => ({
         name: p.playerName,
         hasEmail: !!p.playerEmail,
         hasSms: !!(p.playerPhone && p.playerCarrier),
       })),
       signupCount: `${slotSignups.length}/${slot.maxPlayers}`,
-      status: isComplete ? "COMPLETE → would send REMINDER" :
-              isIncomplete ? "INCOMPLETE → would send URGENT notice" :
-              "EMPTY → no action",
+      status,
       messagePreview: previewMessage || undefined,
+      courtReservationPreview,
     });
   }
 

@@ -26,6 +26,9 @@ export const settings = sqliteTable("settings", {
   urgentTemplate: text("urgent_template").notNull().default(
     "URGENT: Tomorrow's game ({date}) on Court {court} at {time} needs more players!\n\nCurrently signed up ({count}/{max}): {players}\n\nPlease help find additional players."
   ),
+  courtReservationTemplate: text("court_reservation_template").notNull().default(
+    "REMINDER: Tomorrow's game at Court {court} ({date}, {time}) is full but no court is reserved yet. Please reserve a court at the club. Players: {players}"
+  ),
   overflowLastSignupDate: text("overflow_last_signup_date"),
   dropdownResetSeconds: integer("dropdown_reset_seconds").notNull().default(30),
   // Weather forecast location (Open-Meteo). Defaults to West Orange, NJ (07052).

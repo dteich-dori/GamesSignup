@@ -402,7 +402,7 @@ export default function Home() {
       )}
 
       {/* Spreadsheet-style grid */}
-      <div className="flex-1 overflow-x-auto px-2 py-4">
+      <div className="overflow-x-auto px-2 pt-4 pb-2">
         <table className="border-collapse w-full min-w-[600px]" style={{ tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: "70px" }} />
@@ -657,7 +657,7 @@ export default function Home() {
       )}
 
       {/* Footer: guide + home screen instructions */}
-      <div className="border-t border-border px-4 py-3 mt-4 mb-12 text-xs text-muted">
+      <div className="border-t border-border px-4 py-3 mt-2 mb-4 text-xs text-muted">
         <p className="mb-2"><Link href="/guide" className="text-primary font-semibold hover:underline">Player Guide</Link> — How to join games, withdraw, notifications, and more</p>
         <p className="font-semibold text-foreground mb-1">Add to your phone&apos;s home screen:</p>
         <p><strong>iPhone:</strong> Open in Safari &rarr; tap Share &rarr; &quot;Add to Home Screen&quot;</p>

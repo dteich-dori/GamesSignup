@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
     "errorReportEmail", "startDate",
     "emailFromName", "emailReplyTo", "emailTestAddress",
     "emailTestPhone", "emailTestCarrier",
-    "reminderTemplate", "urgentTemplate",
+    "reminderTemplate", "urgentTemplate", "courtReservationTemplate",
     "dropdownResetSeconds",
     "weatherZip", "weatherLat", "weatherLon", "weatherEnabled",
   ];

@@ -70,6 +70,7 @@ export default function CommunicationsPage() {
   // Auto-message templates
   const [reminderTemplate, setReminderTemplate] = useState("");
   const [urgentTemplate, setUrgentTemplate] = useState("");
+  const [courtReservationTemplate, setCourtReservationTemplate] = useState("");
   const [autoTemplateSaved, setAutoTemplateSaved] = useState(false);
 
   // History
@@ -92,6 +93,7 @@ export default function CommunicationsPage() {
     });
     setReminderTemplate(data.reminderTemplate || "");
     setUrgentTemplate(data.urgentTemplate || "");
+    setCourtReservationTemplate(data.courtReservationTemplate || "");
   }, []);
 
   const fetchRecipients = useCallback(async (group: string, since?: string, ids?: number[]) => {
@@ -378,13 +380,22 @@ export default function CommunicationsPage() {
                   title="Message sent to players in incomplete games the evening before"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Court Reservation Reminder (sent for complete games where no court is reserved)</label>
+                <textarea
+                  value={courtReservationTemplate}
+                  onChange={(e) => setCourtReservationTemplate(e.target.value)}
+                  className="w-full p-2 rounded-lg border border-border text-sm min-h-[80px]"
+                  title="Message sent to players in complete games where the Court # checkbox is still unchecked"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={async () => {
                     await fetch("/api/settings", {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ reminderTemplate, urgentTemplate }),
+                      body: JSON.stringify({ reminderTemplate, urgentTemplate, courtReservationTemplate }),
                     });
                     setAutoTemplateSaved(true);
                     setTimeout(() => setAutoTemplateSaved(false), 2000);

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { gameSlots, signups, activityLog, settings, gameStats } from "@/db/schema";
 import { eq, lte, inArray, sql, count } from "drizzle-orm";
-import { sendGameReminders, sendUrgentIncompleteNotices } from "@/lib/reminders";
+import { sendGameReminders, sendUrgentIncompleteNotices, sendCourtReservationReminders } from "@/lib/reminders";
 
 // Daily cron: send reminders, send urgent notices, then clean up old slots
 // Runs at 23:00 UTC (7PM EDT / 6PM EST)
@@ -41,7 +41,20 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // 3. Clean up today's and older game slots
+  // 3. Send court-reservation reminders for tomorrow's complete games where
+  //    no physical court has been reserved yet (Court # checkbox unchecked)
+  try {
+    const courtResult = await sendCourtReservationReminders(database);
+    results.courtReservation = courtResult;
+  } catch (err) {
+    results.courtReservation = { error: String(err) };
+    await database.insert(activityLog).values({
+      action: "CRON_ERROR",
+      details: JSON.stringify({ step: "courtReservation", error: String(err) }),
+    });
+  }
+
+  // 4. Clean up today's and older game slots
   try {
     const today = new Date().toISOString().split("T")[0];
 
