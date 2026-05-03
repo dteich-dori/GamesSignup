@@ -27,7 +27,7 @@ export const settings = sqliteTable("settings", {
     "URGENT: Tomorrow's game ({date}) on Court {court} at {time} needs more players!\n\nCurrently signed up ({count}/{max}): {players}\n\nPlease help find additional players."
   ),
   courtReservationTemplate: text("court_reservation_template").notNull().default(
-    "REMINDER: Tomorrow's game at Court {court} ({date}, {time}) is full but no court is reserved yet. Please reserve a court at the club. Players: {players}"
+    "As the first player listed in the game schedule for tomorrow at {time}, this is a reminder to reserve a court and to update the court number in the signup application"
   ),
   overflowLastSignupDate: text("overflow_last_signup_date"),
   dropdownResetSeconds: integer("dropdown_reset_seconds").notNull().default(30),
