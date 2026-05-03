@@ -331,7 +331,7 @@ export default function Home() {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <p className="flex-1 min-w-[200px] text-xs text-muted leading-snug">
+          <p className="flex-1 min-w-[200px] text-sm text-foreground leading-snug">
             Select your name from the drop list to proceed. To sign up for a game, click on the table&apos;s cell. To remove your name click again. If your name is not on the list, text or call Dori <a href="tel:+19734934959" className="text-primary font-medium whitespace-nowrap">973&nbsp;493-4959</a>.
           </p>
         </div>
