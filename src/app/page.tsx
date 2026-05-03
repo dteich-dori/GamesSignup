@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { APP_VERSION } from "@/lib/version";
+import { getRainProbabilityForGame, rainSeverity, type HourlyPoint } from "@/lib/weather";
 
 interface Player {
   id: number;
@@ -47,6 +48,7 @@ interface Settings {
   maintainerPlayerId: number | null;
   startDate: string | null;
   dropdownResetSeconds: number;
+  weatherEnabled: boolean;
 }
 
 export default function Home() {
@@ -63,6 +65,8 @@ export default function Home() {
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState("");
+  const [weatherHourly, setWeatherHourly] = useState<HourlyPoint[]>([]);
+  const [weatherEnabled, setWeatherEnabled] = useState(false);
 
   const fetchPlayers = useCallback(async () => {
     const res = await fetch("/api/players");
@@ -83,6 +87,21 @@ export default function Home() {
     setSettings(data);
   }, []);
 
+  const fetchWeather = useCallback(async () => {
+    try {
+      const res = await fetch("/api/weather");
+      if (!res.ok) {
+        setWeatherEnabled(false);
+        return;
+      }
+      const data = await res.json() as { enabled: boolean; hourly: HourlyPoint[] };
+      setWeatherEnabled(!!data.enabled);
+      setWeatherHourly(data.hourly || []);
+    } catch {
+      setWeatherEnabled(false);
+    }
+  }, []);
+
   const fetchNotifications = useCallback(async () => {
     if (!selectedPlayerId) return;
     const res = await fetch(`/api/notifications?playerId=${selectedPlayerId}`);
@@ -93,8 +112,8 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem("selectedPlayerId");
     if (saved) setSelectedPlayerId(Number(saved));
-    Promise.all([fetchPlayers(), fetchGameSlots(), fetchSettings()]).then(() => setLoading(false));
-  }, [fetchPlayers, fetchGameSlots, fetchSettings]);
+    Promise.all([fetchPlayers(), fetchGameSlots(), fetchSettings(), fetchWeather()]).then(() => setLoading(false));
+  }, [fetchPlayers, fetchGameSlots, fetchSettings, fetchWeather]);
 
   // Handle notifications
   useEffect(() => {
@@ -503,6 +522,36 @@ export default function Home() {
                     );
                   })}
                 </tr>
+
+                {/* Rain forecast row — only if weather is enabled and we have data */}
+                {weatherEnabled && weatherHourly.length > 0 && (
+                  <tr>
+                    <td className="border border-border p-1 text-xs font-bold text-foreground text-center" title="Rain probability for the 6 hours before each game and during the game">Rain</td>
+                    {dates.map((d) => {
+                      const slot = slotMap.get(`${d}-${courtNum}`);
+                      const timeValue = slot?.timeSlot || settings?.defaultTimeSlot || "";
+                      if (!slot || !timeValue) {
+                        return <td key={d} className="border-l-2 border-r-2 border-border border-t border-b border-border p-1 text-xs text-center text-muted">—</td>;
+                      }
+                      const prob = getRainProbabilityForGame(weatherHourly, d, timeValue);
+                      if (prob === null) {
+                        return <td key={d} className="border-l-2 border-r-2 border-border border-t border-b border-border p-1 text-xs text-center text-muted">—</td>;
+                      }
+                      const sev = rainSeverity(prob);
+                      const bg = sev === "high" ? "bg-red-100 text-red-800" : sev === "medium" ? "bg-yellow-100 text-yellow-900" : "bg-green-50 text-green-800";
+                      const icon = sev === "high" ? "🌧" : sev === "medium" ? "🌦" : "☀";
+                      return (
+                        <td
+                          key={d}
+                          className={`border-l-2 border-r-2 border-border border-t border-b border-border p-1 text-xs text-center font-semibold ${bg}`}
+                          title={`${prob}% chance of rain in the 6 hours before and during this game`}
+                        >
+                          {icon} {prob}%
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
 
                 {/* Player slot rows */}
                 {Array.from({ length: maxPlayers }, (_, playerIdx) => (

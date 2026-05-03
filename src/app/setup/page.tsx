@@ -19,6 +19,10 @@ interface Settings {
   errorReportEmail: string | null;
   startDate: string | null;
   dropdownResetSeconds: number;
+  weatherZip: string;
+  weatherLat: string;
+  weatherLon: string;
+  weatherEnabled: boolean;
 }
 
 interface Player {
@@ -315,6 +319,42 @@ export default function SetupPage() {
                 title="Seconds before the player dropdown resets to default after selection"
               />
               <p className="text-xs text-muted mt-1">Player dropdown resets after this many seconds. Set to 0 to disable.</p>
+            </div>
+          </div>
+
+          {/* Weather forecast location */}
+          <div className="border-t border-border pt-4 mt-4">
+            <h3 className="font-semibold mb-3">Rain Forecast</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-sm font-medium mb-1">ZIP Code</label>
+                <input
+                  type="text"
+                  value={settings.weatherZip}
+                  onChange={(e) => setSettings({ ...settings, weatherZip: e.target.value })}
+                  className="w-full p-2 rounded-lg border border-border"
+                  placeholder="07052"
+                  maxLength={10}
+                  title="ZIP code where games are played. The forecast is generated for this location."
+                />
+                <p className="text-xs text-muted mt-1">
+                  Used to look up rain probability around game times.
+                  {settings.weatherLat && settings.weatherLon && ` (${settings.weatherLat}, ${settings.weatherLon})`}
+                </p>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={settings.weatherEnabled}
+                    onChange={(e) => setSettings({ ...settings, weatherEnabled: e.target.checked })}
+                  />
+                  Show rain forecast on home page
+                </label>
+                <p className="text-xs text-muted mt-1">
+                  Each game shows the highest chance of rain in the 6 hours before the game and during it.
+                </p>
+              </div>
             </div>
           </div>
 

@@ -28,4 +28,9 @@ export const settings = sqliteTable("settings", {
   ),
   overflowLastSignupDate: text("overflow_last_signup_date"),
   dropdownResetSeconds: integer("dropdown_reset_seconds").notNull().default(30),
+  // Weather forecast location (Open-Meteo). Defaults to West Orange, NJ (Brooklake area).
+  weatherZip: text("weather_zip").notNull().default("07052"),
+  weatherLat: text("weather_lat").notNull().default("40.7989"),
+  weatherLon: text("weather_lon").notNull().default("-74.2390"),
+  weatherEnabled: integer("weather_enabled", { mode: "boolean" }).notNull().default(true),
 });
