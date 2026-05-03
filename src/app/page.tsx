@@ -448,12 +448,18 @@ export default function Home() {
 
                 {/* Court reservation row */}
                 <tr>
-                  <td className="border border-border p-1 text-xs font-bold text-foreground text-center">
-                    Ct#
+                  <td
+                    className="border border-border p-1 text-xs font-bold text-foreground text-center"
+                    title="Mark this game as having a physical court reserved, and enter the court number"
+                  >
+                    Court #
                   </td>
                   {dates.map((d) => {
                     const slot = slotMap.get(`${d}-${courtNum}`);
                     const isReserved = !!slot?.reservedCourt;
+                    const checkboxTitle = isReserved
+                      ? `Court reserved${slot?.reservedCourt ? ` (${slot.reservedCourt})` : ""} on ${d} — uncheck to release`
+                      : `Mark a court as reserved for ${d}, then enter the court number in the box to the right`;
                     return (
                       <td key={d} className="border-l-2 border-r-2 border-t-2 border-border border-b border-border p-0 text-center bg-gray-50">
                         {slot && (
@@ -469,6 +475,8 @@ export default function Home() {
                                 }
                               }}
                               className="w-4 h-4"
+                              title={checkboxTitle}
+                              aria-label={checkboxTitle}
                             />
                             <input
                               type="text"
@@ -480,6 +488,7 @@ export default function Home() {
                               }}
                               placeholder="--"
                               className="w-7 text-sm text-center border-0 outline-none bg-transparent font-bold"
+                              title={`Court number reserved for ${d}`}
                             />
                           </div>
                         )}
