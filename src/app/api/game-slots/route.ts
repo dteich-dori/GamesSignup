@@ -261,36 +261,43 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const body = await request.json();
-  const { fromDate, toDate, source, all } = body;
+  const { fromDate, toDate, source } = body;
 
   // Support legacy "beforeDate" param
   const beforeDate = body.beforeDate;
 
   const database = await db();
 
-  // Build date conditions. `all: true` short-circuits to "delete everything".
-  const conditions = [];
-  if (!all) {
-    if (beforeDate) {
-      conditions.push(lt(gameSlots.date, beforeDate));
-    } else {
-      if (fromDate) conditions.push(gte(gameSlots.date, fromDate));
-      if (toDate) conditions.push(lte(gameSlots.date, toDate));
-    }
+  // Safety: this admin endpoint never deletes today's or future game slots.
+  // The cron path (/api/cron/cleanup) is the only thing allowed to remove
+  // today's games. Cap toDate at yesterday and reject dates in the future.
+  const todayStr = new Date().toISOString().split("T")[0];
+  const safeToDate = toDate && toDate < todayStr ? toDate : null;
+  const safeFromDate = fromDate && fromDate < todayStr ? fromDate : null;
 
-    if (conditions.length === 0) {
+  // Build date conditions
+  const conditions = [];
+  if (beforeDate) {
+    if (beforeDate > todayStr) {
       return NextResponse.json(
-        { error: "Specify all=true, beforeDate, fromDate, or toDate" },
+        { error: "beforeDate must be in the past — today and future are protected" },
         { status: 400 }
       );
     }
+    conditions.push(lt(gameSlots.date, beforeDate));
+  } else {
+    if (safeFromDate) conditions.push(gte(gameSlots.date, safeFromDate));
+    if (safeToDate) conditions.push(lte(gameSlots.date, safeToDate));
   }
+
+  // Always cap deletes to dates strictly before today.
+  conditions.push(lt(gameSlots.date, todayStr));
 
   // Find slots to delete and their date range (so we can log the actual span)
   const slotsToDelete = await database
     .select({ id: gameSlots.id, date: gameSlots.date })
     .from(gameSlots)
-    .where(all ? undefined : (conditions.length === 1 ? conditions[0] : and(...conditions)));
+    .where(conditions.length === 1 ? conditions[0] : and(...conditions));
 
   if (slotsToDelete.length === 0) {
     return NextResponse.json({ deleted: 0 });
@@ -305,15 +312,9 @@ export async function DELETE(request: NextRequest) {
   await database.delete(signups).where(inArray(signups.gameSlotId, slotIds));
 
   // Delete the game slots
-  if (all) {
-    await database.delete(gameSlots);
-  } else if (beforeDate) {
-    await database.delete(gameSlots).where(lt(gameSlots.date, beforeDate));
-  } else {
-    await database.delete(gameSlots).where(
-      conditions.length === 1 ? conditions[0] : and(...conditions)
-    );
-  }
+  await database.delete(gameSlots).where(
+    conditions.length === 1 ? conditions[0] : and(...conditions)
+  );
 
   // Log the deletion
   await database.insert(activityLog).values({

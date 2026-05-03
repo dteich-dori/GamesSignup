@@ -37,25 +37,46 @@ export default function MaintenancePage() {
   }
 
   const handleDeleteOldest = async () => {
-    let rangeDesc: string;
-    const body: Record<string, unknown> = { source: "manual" };
+    // Compute yesterday in local YYYY-MM-DD — this button never touches today or future.
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yyyy = yesterday.getFullYear();
+    const mm = String(yesterday.getMonth() + 1).padStart(2, "0");
+    const dd = String(yesterday.getDate()).padStart(2, "0");
+    const yesterdayStr = `${yyyy}-${mm}-${dd}`;
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
+    // Cap the to-date at yesterday so today and future are protected.
+    const userToDate = toDate || yesterdayStr;
+    const effectiveToDate = userToDate >= todayStr ? yesterdayStr : userToDate;
+    const wasCapped = userToDate >= todayStr;
+
+    // Validate fromDate isn't in the future or after the effective to-date.
+    if (fromDate && fromDate > effectiveToDate) {
+      alert(`Start date (${fromDate}) is after the end date (${effectiveToDate}). Nothing to delete.`);
+      return;
+    }
+
+    let rangeDesc: string;
     if (!fromDate && !toDate) {
-      rangeDesc = "ALL game slots (past and future)";
-      body.all = true;
+      rangeDesc = `ALL past games (everything on or before ${yesterdayStr})`;
     } else if (fromDate && !toDate) {
-      rangeDesc = `from ${fromDate} onward`;
-      body.fromDate = fromDate;
+      rangeDesc = `games from ${fromDate} through ${yesterdayStr}`;
     } else if (!fromDate && toDate) {
-      rangeDesc = `up to and including ${toDate}`;
-      body.toDate = toDate;
+      rangeDesc = wasCapped
+        ? `games up to ${effectiveToDate} (capped at yesterday — today and future are protected)`
+        : `games up to and including ${effectiveToDate}`;
     } else {
-      rangeDesc = `from ${fromDate} to ${toDate}`;
-      body.fromDate = fromDate;
-      body.toDate = toDate;
+      rangeDesc = wasCapped
+        ? `games from ${fromDate} to ${effectiveToDate} (capped at yesterday)`
+        : `games from ${fromDate} to ${effectiveToDate}`;
     }
 
     if (!confirm(`This will permanently delete ${rangeDesc} and their signups. Are you sure?`)) return;
+
+    const body: Record<string, unknown> = { source: "manual", toDate: effectiveToDate };
+    if (fromDate) body.fromDate = fromDate;
 
     const delRes = await fetch("/api/game-slots", {
       method: "DELETE",
@@ -70,21 +91,6 @@ export default function MaintenancePage() {
     }
 
     const delData = await delRes.json();
-
-    if (delData.deleted > 0 && toDate) {
-      // If user specified an end date, advance the start date past it.
-      // (Skip when 'all' or 'fromDate only' — those don't have a clean cutoff.)
-      await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate: toDate }),
-      });
-    }
-
-    // Regenerate slots from today (only relevant if we wiped future slots too)
-    if (delData.deleted > 0) {
-      await fetch("/api/game-slots?generate=true");
-    }
 
     if (delData.deleted === 0) {
       alert(`Nothing to delete. No game slots matched the selected range.`);
@@ -102,9 +108,8 @@ export default function MaintenancePage() {
       <div className="bg-card border border-border rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Delete Oldest Games</h2>
         <p className="text-sm text-muted mb-4">
-          Permanently removes game slots and their signups within the date range.
-          <strong> Leave both dates empty to delete ALL game slots (past and future).</strong>
-          Leave only the start date empty to delete up through the end date; leave only the end date empty to delete from the start date onward.
+          Permanently removes <strong>past</strong> game slots and their signups. Today and future games are always protected.
+          Leave both dates empty to delete every past game. Pick a start date to limit how far back to go, an end date to stop earlier than yesterday, or both for a specific window.
         </p>
 
         <div className="flex items-end gap-3 flex-wrap">
@@ -137,10 +142,10 @@ export default function MaintenancePage() {
           </button>
         </div>
         <p className="text-xs text-muted mt-2">
-          {!fromDate && !toDate && <span className="text-danger font-semibold">Will delete ALL game slots (past and future).</span>}
-          {fromDate && !toDate && `Will delete from ${fromDate} onward.`}
-          {!fromDate && toDate && `Will delete from earliest up to and including ${toDate}.`}
-          {fromDate && toDate && `Will delete from ${fromDate} to ${toDate}.`}
+          {!fromDate && !toDate && "Will delete every game on or before yesterday."}
+          {fromDate && !toDate && `Will delete games from ${fromDate} through yesterday.`}
+          {!fromDate && toDate && `Will delete games up to ${toDate} (capped at yesterday if today or later).`}
+          {fromDate && toDate && `Will delete games from ${fromDate} to ${toDate} (capped at yesterday if today or later).`}
         </p>
       </div>
 
