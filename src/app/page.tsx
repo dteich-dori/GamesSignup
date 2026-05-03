@@ -67,6 +67,7 @@ export default function Home() {
   const [pinError, setPinError] = useState("");
   const [weatherHourly, setWeatherHourly] = useState<HourlyPoint[]>([]);
   const [weatherEnabled, setWeatherEnabled] = useState(false);
+  const [weatherLoadedAt, setWeatherLoadedAt] = useState<Date | null>(null);
 
   const fetchPlayers = useCallback(async () => {
     const res = await fetch("/api/players");
@@ -97,6 +98,7 @@ export default function Home() {
       const data = await res.json() as { enabled: boolean; hourly: HourlyPoint[] };
       setWeatherEnabled(!!data.enabled);
       setWeatherHourly(data.hourly || []);
+      setWeatherLoadedAt(new Date());
     } catch {
       setWeatherEnabled(false);
     }
@@ -646,6 +648,11 @@ export default function Home() {
         <span><span className="inline-block w-3 h-3 bg-primary rounded mr-1 align-middle" /> = You (click to withdraw)</span>
         <span><span className="inline-block w-3 h-3 bg-success rounded mr-1 align-middle" /> = Game full</span>
         <span className="text-primary font-medium">+</span> = Click to join
+        {weatherEnabled && weatherLoadedAt && (
+          <span title="Weather forecasts are not exact — values shown are the highest probability of rain in the 6 hours before and during the game">
+            🌧 forecast as of {weatherLoadedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
         <span className="ml-auto">Auto-refreshes every 30s</span>
       </footer>
 

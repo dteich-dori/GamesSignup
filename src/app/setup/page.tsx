@@ -55,6 +55,7 @@ export default function SetupPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [saving, setSaving] = useState(false);
+  const [backupMessage, setBackupMessage] = useState("");
   const [resettingOverflow, setResettingOverflow] = useState(false);
   const [overflowMessage, setOverflowMessage] = useState("");
 
@@ -132,6 +133,7 @@ export default function SetupPage() {
     }
 
     setSaving(true);
+    setBackupMessage("");
     await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -139,6 +141,34 @@ export default function SetupPage() {
     });
     // Regenerate slots (will remove empty excess courts)
     await fetch("/api/game-slots?generate=true");
+
+    // Generate a full database backup and prompt the browser to save it.
+    // The browser writes the file to the user's configured Downloads folder.
+    try {
+      const backupRes = await fetch("/api/backup");
+      if (!backupRes.ok) {
+        setBackupMessage(`Settings saved, but backup download failed (HTTP ${backupRes.status}).`);
+      } else {
+        const blob = await backupRes.blob();
+        const filename =
+          backupRes.headers.get("X-Backup-Filename") ||
+          `gamessignup-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setBackupMessage(
+          `Settings saved. Backup downloaded as “${filename}” to your browser's Downloads folder.`
+        );
+      }
+    } catch (err) {
+      setBackupMessage(`Settings saved, but backup download failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     setSaving(false);
   };
 
@@ -432,6 +462,16 @@ export default function SetupPage() {
               <span className="text-sm text-green-600">{overflowMessage}</span>
             )}
           </div>
+
+          {backupMessage && (
+            <div className="mt-3 text-sm bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-green-900">
+              <div className="font-medium mb-1">{backupMessage}</div>
+              <div className="text-xs text-green-700">
+                <strong>File location:</strong> Your browser&apos;s Downloads folder (typically <code>~/Downloads</code> on macOS, <code>Downloads</code> on Windows, or the iOS/Android Files app under Downloads).
+                The full dump includes every table: settings, players, game slots, signups, notifications, activity log, email log, email templates, and game stats.
+              </div>
+            </div>
+          )}
         </div>
       )}
 
