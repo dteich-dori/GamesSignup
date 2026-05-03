@@ -37,38 +37,60 @@ export default function MaintenancePage() {
   }
 
   const handleDeleteOldest = async () => {
-    const today = new Date().toISOString().split("T")[0];
-    const effectiveToDate = toDate || today;
+    let rangeDesc: string;
+    const body: Record<string, unknown> = { source: "manual" };
 
-    const rangeDesc = fromDate
-      ? `from ${fromDate} to ${effectiveToDate}`
-      : `up to ${effectiveToDate}`;
+    if (!fromDate && !toDate) {
+      rangeDesc = "ALL game slots (past and future)";
+      body.all = true;
+    } else if (fromDate && !toDate) {
+      rangeDesc = `from ${fromDate} onward`;
+      body.fromDate = fromDate;
+    } else if (!fromDate && toDate) {
+      rangeDesc = `up to and including ${toDate}`;
+      body.toDate = toDate;
+    } else {
+      rangeDesc = `from ${fromDate} to ${toDate}`;
+      body.fromDate = fromDate;
+      body.toDate = toDate;
+    }
 
-    if (!confirm(`This will permanently delete all game slots ${rangeDesc} and their signups. Are you sure?`)) return;
-
-    const body: Record<string, string> = { source: "manual" };
-    if (fromDate) body.fromDate = fromDate;
-    body.toDate = effectiveToDate;
+    if (!confirm(`This will permanently delete ${rangeDesc} and their signups. Are you sure?`)) return;
 
     const delRes = await fetch("/api/game-slots", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+
+    if (!delRes.ok) {
+      const err = await delRes.json().catch(() => ({}));
+      alert(`Delete failed: ${err.error || delRes.status}`);
+      return;
+    }
+
     const delData = await delRes.json();
 
-    if (delData.deleted > 0) {
-      // Update settings start date
+    if (delData.deleted > 0 && toDate) {
+      // If user specified an end date, advance the start date past it.
+      // (Skip when 'all' or 'fromDate only' — those don't have a clean cutoff.)
       await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate: effectiveToDate }),
+        body: JSON.stringify({ startDate: toDate }),
       });
-      // Generate new slots
+    }
+
+    // Regenerate slots from today (only relevant if we wiped future slots too)
+    if (delData.deleted > 0) {
       await fetch("/api/game-slots?generate=true");
     }
 
-    alert(`Deleted ${delData.deleted} game slot(s)${delData.deleted > 0 ? ` (${delData.fromDate} to ${delData.toDate})` : ""}.`);
+    if (delData.deleted === 0) {
+      alert(`Nothing to delete. No game slots matched the selected range.`);
+    } else {
+      alert(`Deleted ${delData.deleted} game slot(s) (${delData.fromDate} to ${delData.toDate}).`);
+    }
     fetchDeleteLogs();
   };
 
@@ -81,7 +103,8 @@ export default function MaintenancePage() {
         <h2 className="text-lg font-semibold mb-4">Delete Oldest Games</h2>
         <p className="text-sm text-muted mb-4">
           Permanently removes game slots and their signups within the date range.
-          Leave start date empty to delete from the earliest. Leave end date empty to delete up to today.
+          <strong> Leave both dates empty to delete ALL game slots (past and future).</strong>
+          Leave only the start date empty to delete up through the end date; leave only the end date empty to delete from the start date onward.
         </p>
 
         <div className="flex items-end gap-3 flex-wrap">
@@ -114,9 +137,9 @@ export default function MaintenancePage() {
           </button>
         </div>
         <p className="text-xs text-muted mt-2">
-          {!fromDate && !toDate && "Will delete from earliest up to today."}
-          {fromDate && !toDate && `Will delete from ${fromDate} up to today.`}
-          {!fromDate && toDate && `Will delete from earliest up to ${toDate}.`}
+          {!fromDate && !toDate && <span className="text-danger font-semibold">Will delete ALL game slots (past and future).</span>}
+          {fromDate && !toDate && `Will delete from ${fromDate} onward.`}
+          {!fromDate && toDate && `Will delete from earliest up to and including ${toDate}.`}
           {fromDate && toDate && `Will delete from ${fromDate} to ${toDate}.`}
         </p>
       </div>

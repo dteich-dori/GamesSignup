@@ -261,31 +261,36 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const body = await request.json();
-  const { fromDate, toDate, source } = body;
+  const { fromDate, toDate, source, all } = body;
 
   // Support legacy "beforeDate" param
   const beforeDate = body.beforeDate;
 
   const database = await db();
 
-  // Build date conditions
+  // Build date conditions. `all: true` short-circuits to "delete everything".
   const conditions = [];
-  if (beforeDate) {
-    conditions.push(lt(gameSlots.date, beforeDate));
-  } else {
-    if (fromDate) conditions.push(gte(gameSlots.date, fromDate));
-    if (toDate) conditions.push(lte(gameSlots.date, toDate));
+  if (!all) {
+    if (beforeDate) {
+      conditions.push(lt(gameSlots.date, beforeDate));
+    } else {
+      if (fromDate) conditions.push(gte(gameSlots.date, fromDate));
+      if (toDate) conditions.push(lte(gameSlots.date, toDate));
+    }
+
+    if (conditions.length === 0) {
+      return NextResponse.json(
+        { error: "Specify all=true, beforeDate, fromDate, or toDate" },
+        { status: 400 }
+      );
+    }
   }
 
-  if (conditions.length === 0) {
-    return NextResponse.json({ error: "Date range is required" }, { status: 400 });
-  }
-
-  // Find slots to delete and their date range
+  // Find slots to delete and their date range (so we can log the actual span)
   const slotsToDelete = await database
     .select({ id: gameSlots.id, date: gameSlots.date })
     .from(gameSlots)
-    .where(conditions.length === 1 ? conditions[0] : and(...conditions));
+    .where(all ? undefined : (conditions.length === 1 ? conditions[0] : and(...conditions)));
 
   if (slotsToDelete.length === 0) {
     return NextResponse.json({ deleted: 0 });
@@ -300,7 +305,9 @@ export async function DELETE(request: NextRequest) {
   await database.delete(signups).where(inArray(signups.gameSlotId, slotIds));
 
   // Delete the game slots
-  if (beforeDate) {
+  if (all) {
+    await database.delete(gameSlots);
+  } else if (beforeDate) {
     await database.delete(gameSlots).where(lt(gameSlots.date, beforeDate));
   } else {
     await database.delete(gameSlots).where(
