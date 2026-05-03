@@ -2,7 +2,8 @@
  * Weather utilities for the home-page rain forecast.
  *
  * The Scheduler shows games as a date (YYYY-MM-DD) plus a free-form `timeSlot`
- * string typed by the admin (e.g. "8:00 AM - 10:00 AM"). To compute the rain
+ * string typed by the admin (e.g. "08:15-09:45" or "8:00 AM - 10:00 AM").
+ * To compute the rain
  * window we need to parse that into start/end hour-minute pairs.
  *
  * The "wet courts" window is [game_start - HOURS_BEFORE_GAME, game_end].
@@ -26,7 +27,7 @@ export interface WeatherFeed {
 }
 
 /**
- * Parse a timeSlot like "8:00 AM - 10:00 AM" into [startHour, startMin, endHour, endMin]
+ * Parse a timeSlot like "08:15-09:45" or "8:00 AM - 10:00 AM" into [startHour, startMin, endHour, endMin]
  * Returns null if parsing fails. Tolerant of variations: "8 AM-10 AM", "08:00-10:00", etc.
  */
 export function parseTimeSlot(timeSlot: string): {

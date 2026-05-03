@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
   const [created] = await database.insert(gameSlots).values({
     date,
     courtNumber,
-    timeSlot: timeSlot || s?.defaultTimeSlot || "8:00 AM - 10:00 AM",
+    timeSlot: timeSlot || s?.defaultTimeSlot || "08:15-09:45",
     maxPlayers: maxPlayers || s?.playersPerGame || 4,
   }).returning();
 
