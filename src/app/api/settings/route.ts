@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { settings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+
+async function migrateSettingsColumns() {
+  const database = await db();
+  const migrations = [
+    `ALTER TABLE settings ADD COLUMN time_slot_earliest_start TEXT NOT NULL DEFAULT '08:00'`,
+    `ALTER TABLE settings ADD COLUMN time_slot_latest_start TEXT NOT NULL DEFAULT '10:00'`,
+    `ALTER TABLE settings ADD COLUMN time_slot_duration_minutes INTEGER NOT NULL DEFAULT 120`,
+  ];
+  for (const stmt of migrations) {
+    try { await database.run(sql.raw(stmt)); } catch { /* column already exists */ }
+  }
+}
 
 /**
  * Geocode a US ZIP code to {lat, lon} using Open-Meteo's free geocoding API.
@@ -27,6 +39,7 @@ async function geocodeZip(zip: string): Promise<{ lat: string; lon: string } | n
 }
 
 export async function GET() {
+  await migrateSettingsColumns();
   const database = await db();
   const rows = await database.select().from(settings);
 
@@ -61,6 +74,7 @@ export async function PUT(request: NextRequest) {
     "reminderTemplate", "urgentTemplate", "courtReservationTemplate",
     "dropdownResetSeconds",
     "weatherZip", "weatherLat", "weatherLon", "weatherEnabled",
+    "timeSlotEarliestStart", "timeSlotLatestStart", "timeSlotDurationMinutes",
   ];
 
   for (const field of allowedFields) {

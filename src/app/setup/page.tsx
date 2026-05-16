@@ -3,6 +3,27 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
+function generateTimeOptions(earliest: string, latest: string, durationMinutes: number): { value: string; label: string }[] {
+  const [eh, em] = earliest.split(":").map(Number);
+  const [lh, lm] = latest.split(":").map(Number);
+  const options: { value: string; label: string }[] = [];
+  let totalMins = eh * 60 + em;
+  const latestMins = lh * 60 + lm;
+  while (totalMins <= latestMins) {
+    const sh = Math.floor(totalMins / 60);
+    const sm = totalMins % 60;
+    const endMins = totalMins + durationMinutes;
+    const eh2 = Math.floor(endMins / 60);
+    const em2 = endMins % 60;
+    const start = `${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}`;
+    const end = `${String(eh2).padStart(2, "0")}:${String(em2).padStart(2, "0")}`;
+    const value = `${start}-${end}`;
+    options.push({ value, label: `${start} – ${end}` });
+    totalMins += 15;
+  }
+  return options;
+}
+
 interface Settings {
   id: number;
   clubName: string;
@@ -23,6 +44,9 @@ interface Settings {
   weatherLat: string;
   weatherLon: string;
   weatherEnabled: boolean;
+  timeSlotEarliestStart: string;
+  timeSlotLatestStart: string;
+  timeSlotDurationMinutes: number;
 }
 
 interface Player {
@@ -262,13 +286,50 @@ export default function SetupPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Default Time Slot</label>
+              <label className="block text-sm font-medium mb-1">Earliest Start Time</label>
               <input
-                type="text"
+                type="time"
+                value={settings.timeSlotEarliestStart}
+                onChange={(e) => setSettings({ ...settings, timeSlotEarliestStart: e.target.value })}
+                className="w-full p-2 rounded-lg border border-border"
+              />
+              <p className="text-xs text-muted mt-1">First option in the time picker dropdown</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Latest Start Time</label>
+              <input
+                type="time"
+                value={settings.timeSlotLatestStart}
+                onChange={(e) => setSettings({ ...settings, timeSlotLatestStart: e.target.value })}
+                className="w-full p-2 rounded-lg border border-border"
+              />
+              <p className="text-xs text-muted mt-1">Last option in the time picker dropdown</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Game Duration (minutes)</label>
+              <input
+                type="number"
+                min={30}
+                max={240}
+                step={15}
+                value={settings.timeSlotDurationMinutes}
+                onChange={(e) => setSettings({ ...settings, timeSlotDurationMinutes: Number(e.target.value) })}
+                className="w-full p-2 rounded-lg border border-border"
+              />
+              <p className="text-xs text-muted mt-1">End time = start + this many minutes</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Default Time Slot</label>
+              <select
                 value={settings.defaultTimeSlot}
                 onChange={(e) => setSettings({ ...settings, defaultTimeSlot: e.target.value })}
                 className="w-full p-2 rounded-lg border border-border"
-              />
+              >
+                {generateTimeOptions(settings.timeSlotEarliestStart, settings.timeSlotLatestStart, settings.timeSlotDurationMinutes).map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted mt-1">Applied to new game slots (can be overridden per cell)</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Courts Available</label>

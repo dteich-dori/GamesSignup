@@ -5,6 +5,27 @@ import Link from "next/link";
 import { APP_VERSION } from "@/lib/version";
 import { getRainProbabilityForGame, rainSeverity, type HourlyPoint } from "@/lib/weather";
 
+function generateTimeOptions(earliest: string, latest: string, durationMinutes: number): { value: string; label: string }[] {
+  const [eh, em] = earliest.split(":").map(Number);
+  const [lh, lm] = latest.split(":").map(Number);
+  const options: { value: string; label: string }[] = [];
+  let totalMins = eh * 60 + em;
+  const latestMins = lh * 60 + lm;
+  while (totalMins <= latestMins) {
+    const sh = Math.floor(totalMins / 60);
+    const sm = totalMins % 60;
+    const endMins = totalMins + durationMinutes;
+    const eh2 = Math.floor(endMins / 60);
+    const em2 = endMins % 60;
+    const start = `${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}`;
+    const end = `${String(eh2).padStart(2, "0")}:${String(em2).padStart(2, "0")}`;
+    const value = `${start}-${end}`;
+    options.push({ value, label: `${start}–${end}` });
+    totalMins += 15;
+  }
+  return options;
+}
+
 interface Player {
   id: number;
   name: string;
@@ -49,6 +70,9 @@ interface Settings {
   startDate: string | null;
   dropdownResetSeconds: number;
   weatherEnabled: boolean;
+  timeSlotEarliestStart: string;
+  timeSlotLatestStart: string;
+  timeSlotDurationMinutes: number;
 }
 
 export default function Home() {
@@ -59,8 +83,6 @@ export default function Home() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [editingTimeKey, setEditingTimeKey] = useState<string | null>(null);
-  const [editingTimeValue, setEditingTimeValue] = useState("");
   const [recentlyJoined, setRecentlyJoined] = useState<Set<number>>(new Set());
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinInput, setPinInput] = useState("");
@@ -234,7 +256,6 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: slotId, timeSlot: newTime.trim() }),
     });
-    setEditingTimeKey(null);
     fetchGameSlots();
   };
 
@@ -505,34 +526,30 @@ export default function Home() {
                   {dates.map((d) => {
                     const slot = slotMap.get(`${d}-${courtNum}`);
                     const timeValue = slot?.timeSlot || settings?.defaultTimeSlot || "";
-                    const key = `${d}-${courtNum}`;
-                    const isEditing = editingTimeKey === key;
+                    const timeOptions = generateTimeOptions(
+                      settings?.timeSlotEarliestStart || "08:00",
+                      settings?.timeSlotLatestStart || "10:00",
+                      settings?.timeSlotDurationMinutes || 120
+                    );
+                    const valueInOptions = timeOptions.some((o) => o.value === timeValue);
                     return (
                       <td key={d} className="border-l-2 border-r-2 border-border border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
-                        {isEditing && slot ? (
-                          <input
-                            type="text"
-                            value={editingTimeValue}
-                            onChange={(e) => setEditingTimeValue(e.target.value)}
-                            onBlur={() => handleTimeChange(slot.id, editingTimeValue)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleTimeChange(slot.id, editingTimeValue);
-                              if (e.key === "Escape") setEditingTimeKey(null);
-                            }}
-                            autoFocus
-                            className="w-full text-xs text-center font-semibold p-1 border-0 outline-none bg-blue-50"
-                          />
-                        ) : (
-                          <div
-                            onClick={() => {
-                              setEditingTimeKey(key);
-                              setEditingTimeValue(timeValue);
-                            }}
-                            className="p-1 cursor-pointer hover:bg-blue-50 transition-colors"
-                            title="Click to change time"
+                        {slot ? (
+                          <select
+                            value={valueInOptions ? timeValue : ""}
+                            onChange={(e) => handleTimeChange(slot.id, e.target.value)}
+                            className="w-full text-xs text-center font-semibold py-1 px-0 border-0 outline-none bg-transparent cursor-pointer hover:bg-blue-50 appearance-none"
+                            title="Tap to change game time"
                           >
-                            {timeValue}
-                          </div>
+                            {!valueInOptions && (
+                              <option value="" disabled>{timeValue}</option>
+                            )}
+                            {timeOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="p-1 text-muted">{timeValue}</div>
                         )}
                       </td>
                     );

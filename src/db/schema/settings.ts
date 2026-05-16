@@ -36,4 +36,7 @@ export const settings = sqliteTable("settings", {
   weatherLat: text("weather_lat").notNull().default("40.7989"),
   weatherLon: text("weather_lon").notNull().default("-74.2390"),
   weatherEnabled: integer("weather_enabled", { mode: "boolean" }).notNull().default(true),
+  timeSlotEarliestStart: text("time_slot_earliest_start").notNull().default("08:00"),
+  timeSlotLatestStart: text("time_slot_latest_start").notNull().default("10:00"),
+  timeSlotDurationMinutes: integer("time_slot_duration_minutes").notNull().default(120),
 });
