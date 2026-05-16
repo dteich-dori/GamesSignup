@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { players, settings, emailLog, activityLog } from "@/db/schema";
-import { eq, and, gt, isNotNull, ne, inArray } from "drizzle-orm";
+import { eq, and, gt, inArray } from "drizzle-orm";
 import { sendBulkEmails, sendBulkSms, validateEmailConfig, type Recipient, type SmsRecipient } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   if (recipientGroup === "Test") {
     const hasTestEmail = !!(s.emailTestAddress);
-    const hasTestSms = !!(s.emailTestPhone && s.emailTestCarrier);
+    const hasTestSms = !!(s.emailTestPhone);
 
     if (!hasTestEmail && !hasTestSms) {
       return NextResponse.json({ error: "No test email or phone configured in settings" }, { status: 400 });
@@ -48,14 +48,14 @@ export async function POST(request: NextRequest) {
       if (hasTestEmail) emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
     } else if (selectedChannel === "sms") {
       if (hasTestSms) {
-        smsRecipients = [{ name: "Test", phone: s.emailTestPhone, carrier: s.emailTestCarrier }];
+        smsRecipients = [{ name: "Test", phone: s.emailTestPhone }];
       } else if (hasTestEmail) {
         emailRecipients = [{ name: "Test (SMS fallback)", email: s.emailTestAddress }];
       }
     } else {
       // "both": send via both channels
       if (hasTestEmail) emailRecipients = [{ name: "Test", email: s.emailTestAddress }];
-      if (hasTestSms) smsRecipients = [{ name: "Test", phone: s.emailTestPhone, carrier: s.emailTestCarrier }];
+      if (hasTestSms) smsRecipients = [{ name: "Test", phone: s.emailTestPhone }];
     }
   } else {
     const playerRows = await database
@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
         name: players.name,
         email: players.email,
         phone: players.phone,
-        carrier: players.carrier,
       })
       .from(players)
       .where(
@@ -75,29 +74,22 @@ export async function POST(request: NextRequest) {
       );
 
     for (const p of playerRows) {
-      const hasSms = !!(p.phone && p.carrier);
+      const hasSms = !!(p.phone);
       const hasEmail = !!(p.email && p.email.trim());
 
       if (selectedChannel === "email") {
-        // Email only
-        if (hasEmail) {
-          emailRecipients.push({ name: p.name, email: p.email! });
-        }
+        if (hasEmail) emailRecipients.push({ name: p.name, email: p.email! });
       } else if (selectedChannel === "sms") {
-        // Prefer SMS; fall back to email for players without SMS
+        // Prefer SMS; fall back to email for players without a phone
         if (hasSms) {
-          smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier! });
+          smsRecipients.push({ name: p.name, phone: p.phone! });
         } else if (hasEmail) {
           emailRecipients.push({ name: p.name, email: p.email! });
         }
       } else {
-        // "both": send via both channels — email to all with email, SMS to all with phone+carrier
-        if (hasEmail) {
-          emailRecipients.push({ name: p.name, email: p.email! });
-        }
-        if (hasSms) {
-          smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier! });
-        }
+        // "both": email to all with email, SMS to all with phone
+        if (hasEmail) emailRecipients.push({ name: p.name, email: p.email! });
+        if (hasSms) smsRecipients.push({ name: p.name, phone: p.phone! });
       }
     }
   }

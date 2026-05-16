@@ -54,22 +54,9 @@ interface Player {
   name: string;
   email: string | null;
   phone: string | null;
-  carrier: string | null;
   isActive: boolean;
   createdAt: string;
 }
-
-const CARRIERS = [
-  { value: "", label: "— Carrier —" },
-  { value: "verizon", label: "Verizon" },
-  { value: "att", label: "AT&T" },
-  { value: "tmobile", label: "T-Mobile" },
-  { value: "sprint", label: "Sprint" },
-  { value: "uscellular", label: "US Cellular" },
-  { value: "boost", label: "Boost Mobile" },
-  { value: "cricket", label: "Cricket" },
-  { value: "metro", label: "Metro by T-Mobile" },
-];
 
 export default function SetupPage() {
   const [role, setRole] = useState<"creator" | "maintainer" | null>(null);

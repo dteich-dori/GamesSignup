@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   // "List": full active player list (used for the multi-select picker, no email filter)
   if (group === "List") {
     const result = await database
-      .select({ id: players.id, name: players.name, email: players.email, phone: players.phone, carrier: players.carrier })
+      .select({ id: players.id, name: players.name, email: players.email, phone: players.phone })
       .from(players)
       .where(eq(players.isActive, true))
       .orderBy(asc(players.name));

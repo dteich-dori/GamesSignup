@@ -44,7 +44,6 @@ export async function sendGameReminders(database: Database) {
         playerName: players.name,
         playerEmail: players.email,
         playerPhone: players.phone,
-        playerCarrier: players.carrier,
       })
       .from(signups)
       .innerJoin(players, eq(signups.playerId, players.id))
@@ -82,8 +81,8 @@ export async function sendGameReminders(database: Database) {
         .map((s) => ({ name: s.playerName, email: s.playerEmail! }));
 
       const smsRecipients: SmsRecipient[] = slotSignups
-        .filter((s) => s.playerPhone && s.playerCarrier)
-        .map((s) => ({ name: s.playerName, phone: s.playerPhone!, carrier: s.playerCarrier! }));
+        .filter((s) => s.playerPhone)
+        .map((s) => ({ name: s.playerName, phone: s.playerPhone! }));
 
       const allRecipientNames: string[] = [];
 
@@ -149,7 +148,6 @@ export async function sendUrgentIncompleteNotices(database: Database) {
         playerName: players.name,
         playerEmail: players.email,
         playerPhone: players.phone,
-        playerCarrier: players.carrier,
       })
       .from(signups)
       .innerJoin(players, eq(signups.playerId, players.id))
@@ -184,8 +182,8 @@ export async function sendUrgentIncompleteNotices(database: Database) {
       .map((s) => ({ name: s.playerName, email: s.playerEmail! }));
 
     const smsRecipients: SmsRecipient[] = slotSignups
-      .filter((s) => s.playerPhone && s.playerCarrier)
-      .map((s) => ({ name: s.playerName, phone: s.playerPhone!, carrier: s.playerCarrier! }));
+      .filter((s) => s.playerPhone)
+      .map((s) => ({ name: s.playerName, phone: s.playerPhone! }));
 
     const allRecipientNames: string[] = [];
 
@@ -221,7 +219,7 @@ export async function sendUrgentIncompleteNotices(database: Database) {
  * Send a reminder to players in tomorrow's *complete* games when no physical
  * court has been reserved yet (the Court # checkbox is unchecked / reservedCourt
  * is null). Reaches each player by their preferred channel — SMS if phone +
- * carrier are configured, otherwise email.
+ * phone is configured, otherwise email.
  */
 export async function sendCourtReservationReminders(database: Database) {
   const tomorrow = new Date();
@@ -258,7 +256,6 @@ export async function sendCourtReservationReminders(database: Database) {
         playerName: players.name,
         playerEmail: players.email,
         playerPhone: players.phone,
-        playerCarrier: players.carrier,
         signedUpAt: signups.signedUpAt,
       })
       .from(signups)
@@ -294,8 +291,8 @@ export async function sendCourtReservationReminders(database: Database) {
       ? [{ name: firstPlayer.playerName, email: firstPlayer.playerEmail }]
       : [];
 
-    const smsRecipients: SmsRecipient[] = firstPlayer.playerPhone && firstPlayer.playerCarrier
-      ? [{ name: firstPlayer.playerName, phone: firstPlayer.playerPhone, carrier: firstPlayer.playerCarrier }]
+    const smsRecipients: SmsRecipient[] = firstPlayer.playerPhone
+      ? [{ name: firstPlayer.playerName, phone: firstPlayer.playerPhone }]
       : [];
 
     const allRecipientNames: string[] = [];
