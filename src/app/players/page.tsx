@@ -7,9 +7,22 @@ interface Player {
   name: string;
   email: string | null;
   phone: string | null;
+  carrier: string | null;
   isActive: boolean;
   createdAt: string;
 }
+
+const CARRIERS = [
+  { value: "", label: "— Carrier —" },
+  { value: "verizon", label: "Verizon" },
+  { value: "att", label: "AT&T" },
+  { value: "tmobile", label: "T-Mobile" },
+  { value: "sprint", label: "Sprint" },
+  { value: "uscellular", label: "US Cellular" },
+  { value: "boost", label: "Boost Mobile" },
+  { value: "cricket", label: "Cricket" },
+  { value: "metro", label: "Metro by T-Mobile" },
+];
 
 export default function PlayersPage() {
   const [role, setRole] = useState<string | null>(null);
@@ -17,6 +30,7 @@ export default function PlayersPage() {
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerEmail, setNewPlayerEmail] = useState("");
   const [newPlayerPhone, setNewPlayerPhone] = useState("");
+  const [newPlayerCarrier, setNewPlayerCarrier] = useState("");
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [showAll, setShowAll] = useState(false);
 
@@ -53,6 +67,7 @@ export default function PlayersPage() {
         name: newPlayerName.trim(),
         email: newPlayerEmail.trim() || null,
         phone: newPlayerPhone.trim() || null,
+        carrier: newPlayerCarrier || null,
       }),
     });
     if (!res.ok) {
@@ -62,6 +77,7 @@ export default function PlayersPage() {
     setNewPlayerName("");
     setNewPlayerEmail("");
     setNewPlayerPhone("");
+    setNewPlayerCarrier("");
     fetchPlayers();
   };
 
@@ -134,6 +150,16 @@ export default function PlayersPage() {
               className="w-32 p-2 rounded-lg border border-border"
               title="10-digit phone number for SMS notifications"
             />
+            <select
+              value={editingPlayer.carrier || ""}
+              onChange={(e) => setEditingPlayer({ ...editingPlayer, carrier: e.target.value || null })}
+              className="w-32 p-2 rounded-lg border border-border"
+              title="Mobile carrier for SMS gateway"
+            >
+              {CARRIERS.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
             <label className="flex items-center gap-1.5 text-sm">
               <input
                 type="checkbox"
@@ -184,6 +210,16 @@ export default function PlayersPage() {
               className="w-32 p-2 rounded-lg border border-border"
               title="10-digit phone number for SMS notifications"
             />
+            <select
+              value={newPlayerCarrier}
+              onChange={(e) => setNewPlayerCarrier(e.target.value)}
+              className="w-32 p-2 rounded-lg border border-border"
+              title="Mobile carrier for SMS gateway"
+            >
+              {CARRIERS.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
             <button
               onClick={handleAddPlayer}
               className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover"
@@ -203,6 +239,7 @@ export default function PlayersPage() {
               <th className="text-left p-3 font-medium">Name</th>
               <th className="text-left p-3 font-medium">Email</th>
               <th className="text-left p-3 font-medium">Phone</th>
+              <th className="text-left p-3 font-medium">Carrier</th>
               <th className="text-center p-3 font-medium">Active</th>
               <th className="text-right p-3 font-medium">Actions</th>
             </tr>
@@ -213,6 +250,7 @@ export default function PlayersPage() {
                 <td className={`p-3 ${!player.isActive ? "text-muted line-through" : ""}`}>{player.name}</td>
                 <td className="p-3 text-muted">{player.email || "—"}</td>
                 <td className="p-3 text-muted">{player.phone || "—"}</td>
+                <td className="p-3 text-muted">{CARRIERS.find((c) => c.value === player.carrier)?.label || "—"}</td>
                 <td className="p-3 text-center">
                   <button onClick={() => handleToggleActive(player)} title={player.isActive ? "Click to deactivate this player" : "Click to reactivate this player"}>
                     {player.isActive ? (
