@@ -5,7 +5,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // SMS gateway domains by carrier
 const SMS_GATEWAYS: Record<string, string> = {
   verizon: "vtext.com",
-  att: "txt.att.net",
+  att: "mms.att.net",
   tmobile: "tmomail.net",
   sprint: "messaging.sprintpcs.com",
   uscellular: "email.uscc.net",
