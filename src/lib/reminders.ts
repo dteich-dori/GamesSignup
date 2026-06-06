@@ -50,8 +50,8 @@ export async function sendGameReminders(database: Database) {
       .innerJoin(players, eq(signups.playerId, players.id))
       .where(eq(signups.gameSlotId, slot.id));
 
-    // Only send reminders for complete games
-    if (slotSignups.length < slot.maxPlayers) continue;
+    // Only send reminders if at least 3 players are signed up
+    if (slotSignups.length < 3) continue;
 
     const playerNames = slotSignups.map((s) => s.playerName).join(", ");
     const templateVars = {
