@@ -54,16 +54,17 @@ export async function sendGameReminders(database: Database) {
     if (slotSignups.length < 3) continue;
 
     const playerNames = slotSignups.map((s) => s.playerName).join(", ");
+    const courtLabel = slot.reservedCourt ? `Court ${slot.reservedCourt}` : "court not reserved yet";
     const templateVars = {
       date: tomorrowStr,
-      court: String(slot.courtNumber),
+      court: slot.reservedCourt || "not reserved yet",
       time: slot.timeSlot,
       players: playerNames,
       count: String(slotSignups.length),
       max: String(slot.maxPlayers),
     };
     const message = applyTemplate(s.reminderTemplate, templateVars);
-    const subjectLine = `Game Reminder: ${tomorrowStr} Court ${slot.courtNumber}`;
+    const subjectLine = `Game Reminder: ${tomorrowStr} — ${courtLabel}`;
 
     // Create in-app notifications
     for (const signup of slotSignups) {
@@ -161,14 +162,14 @@ export async function sendUrgentIncompleteNotices(database: Database) {
     const playerNames = slotSignups.map((s) => s.playerName).join(", ");
     const templateVars = {
       date: tomorrowStr,
-      court: String(slot.courtNumber),
+      court: slot.reservedCourt || "not reserved yet",
       time: slot.timeSlot,
       players: playerNames,
       count: String(slotSignups.length),
       max: String(slot.maxPlayers),
     };
     const message = applyTemplate(s.urgentTemplate, templateVars);
-    const subjectLine = `URGENT: Tomorrow's game needs players - Court ${slot.courtNumber}`;
+    const subjectLine = `URGENT: Tomorrow's game needs players — ${slot.reservedCourt ? `Court ${slot.reservedCourt}` : "court not reserved yet"}`;
 
     // Create in-app notifications
     for (const signup of slotSignups) {
@@ -273,14 +274,14 @@ export async function sendCourtReservationReminders(database: Database) {
 
     const templateVars = {
       date: tomorrowStr,
-      court: String(slot.courtNumber),
+      court: slot.reservedCourt || "not reserved yet",
       time: slot.timeSlot,
       players: allPlayerNames,
       count: String(slotSignups.length),
       max: String(slot.maxPlayers),
     };
     const message = applyTemplate(s.courtReservationTemplate, templateVars);
-    const subjectLine = `Reserve a court — Tomorrow ${tomorrowStr}, Court ${slot.courtNumber}`;
+    const subjectLine = `Reserve a court — Tomorrow ${tomorrowStr} at ${slot.timeSlot}`;
 
     // In-app notification ONLY for the first player (the one being asked to reserve)
     await database.insert(notifications).values({
