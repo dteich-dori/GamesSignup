@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { gameSlots, signups, players, settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { hasSmsCapability } from "@/lib/email";
 
 // Dry-run test endpoint — shows what the cron WOULD do without sending or deleting anything
 export async function GET() {
@@ -77,7 +78,7 @@ export async function GET() {
       players: slotSignups.map((p) => ({
         name: p.playerName,
         hasEmail: !!p.playerEmail,
-        hasSms: !!(p.playerPhone && p.playerCarrier),
+        hasSms: hasSmsCapability(p.playerPhone, p.playerCarrier),
       })),
       signupCount: `${slotSignups.length}/${slot.maxPlayers}`,
       status,

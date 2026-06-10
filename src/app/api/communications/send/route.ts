@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { players, settings, emailLog, activityLog } from "@/db/schema";
 import { eq, and, gt, isNotNull, ne, inArray } from "drizzle-orm";
-import { sendBulkEmails, sendBulkSms, validateEmailConfig, type Recipient, type SmsRecipient } from "@/lib/email";
+import { sendBulkEmails, sendBulkSms, validateEmailConfig, hasSmsCapability, type Recipient, type SmsRecipient } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   if (recipientGroup === "Test") {
     const hasTestEmail = !!(s.emailTestAddress);
-    const hasTestSms = !!(s.emailTestPhone && s.emailTestCarrier);
+    const hasTestSms = hasSmsCapability(s.emailTestPhone, s.emailTestCarrier);
 
     if (!hasTestEmail && !hasTestSms) {
       return NextResponse.json({ error: "No test email or phone configured in settings" }, { status: 400 });
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       );
 
     for (const p of playerRows) {
-      const hasSms = !!(p.phone && p.carrier);
+      const hasSms = hasSmsCapability(p.phone, p.carrier);
       const hasEmail = !!(p.email && p.email.trim());
 
       if (selectedChannel === "email") {
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       } else if (selectedChannel === "sms") {
         // Prefer SMS; fall back to email for players without SMS
         if (hasSms) {
-          smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier! });
+          smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier ?? undefined });
         } else if (hasEmail) {
           emailRecipients.push({ name: p.name, email: p.email! });
         }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
           emailRecipients.push({ name: p.name, email: p.email! });
         }
         if (hasSms) {
-          smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier! });
+          smsRecipients.push({ name: p.name, phone: p.phone!, carrier: p.carrier ?? undefined });
         }
       }
     }

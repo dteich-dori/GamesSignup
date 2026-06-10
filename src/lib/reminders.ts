@@ -1,6 +1,6 @@
 import { eq, asc } from "drizzle-orm";
 import { gameSlots, signups, players, notifications, settings, emailLog } from "@/db/schema";
-import { sendBulkEmails, sendBulkSms, validateEmailConfig, type Recipient, type SmsRecipient } from "./email";
+import { sendBulkEmails, sendBulkSms, validateEmailConfig, hasSmsCapability, type Recipient, type SmsRecipient } from "./email";
 import type { Database } from "@/db/index";
 
 function formatDate(date: Date): string {
@@ -83,8 +83,8 @@ export async function sendGameReminders(database: Database) {
         .map((s) => ({ name: s.playerName, email: s.playerEmail! }));
 
       const smsRecipients: SmsRecipient[] = slotSignups
-        .filter((s) => s.playerPhone && s.playerCarrier)
-        .map((s) => ({ name: s.playerName, phone: s.playerPhone!, carrier: s.playerCarrier! }));
+        .filter((s) => hasSmsCapability(s.playerPhone, s.playerCarrier))
+        .map((s) => ({ name: s.playerName, phone: s.playerPhone!, carrier: s.playerCarrier ?? undefined }));
 
       const allRecipientNames: string[] = [];
 
@@ -185,8 +185,8 @@ export async function sendUrgentIncompleteNotices(database: Database) {
       .map((s) => ({ name: s.playerName, email: s.playerEmail! }));
 
     const smsRecipients: SmsRecipient[] = slotSignups
-      .filter((s) => s.playerPhone && s.playerCarrier)
-      .map((s) => ({ name: s.playerName, phone: s.playerPhone!, carrier: s.playerCarrier! }));
+      .filter((s) => hasSmsCapability(s.playerPhone, s.playerCarrier))
+      .map((s) => ({ name: s.playerName, phone: s.playerPhone!, carrier: s.playerCarrier ?? undefined }));
 
     const allRecipientNames: string[] = [];
 
@@ -295,8 +295,8 @@ export async function sendCourtReservationReminders(database: Database) {
       ? [{ name: firstPlayer.playerName, email: firstPlayer.playerEmail }]
       : [];
 
-    const smsRecipients: SmsRecipient[] = firstPlayer.playerPhone && firstPlayer.playerCarrier
-      ? [{ name: firstPlayer.playerName, phone: firstPlayer.playerPhone, carrier: firstPlayer.playerCarrier }]
+    const smsRecipients: SmsRecipient[] = hasSmsCapability(firstPlayer.playerPhone, firstPlayer.playerCarrier)
+      ? [{ name: firstPlayer.playerName, phone: firstPlayer.playerPhone!, carrier: firstPlayer.playerCarrier ?? undefined }]
       : [];
 
     const allRecipientNames: string[] = [];
