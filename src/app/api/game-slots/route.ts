@@ -54,6 +54,35 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
         await database.delete(gameSlots).where(eq(gameSlots.id, slot.id));
       }
     }
+
+    // Safety net: if all regular (non-overflow) slots are full and no overflow
+    // slot exists yet, create one. This recovers from cases where the overflow
+    // slot was created but then incorrectly deleted before anyone signed up.
+    const allSlotsForDate = await database.select().from(gameSlots).where(eq(gameSlots.date, date));
+    const regularSlots = allSlotsForDate.filter((g) => !g.isOverflow);
+    const hasOverflow = allSlotsForDate.some((g) => g.isOverflow);
+
+    if (!hasOverflow && regularSlots.length > 0) {
+      let allRegularFull = true;
+      for (const regSlot of regularSlots) {
+        const count = await database.select().from(signups).where(eq(signups.gameSlotId, regSlot.id));
+        if (count.length < regSlot.maxPlayers) {
+          allRegularFull = false;
+          break;
+        }
+      }
+      if (allRegularFull) {
+        const maxCourt = Math.max(...regularSlots.map((g) => g.courtNumber));
+        const template = regularSlots[regularSlots.length - 1];
+        await database.insert(gameSlots).values({
+          date,
+          courtNumber: maxCourt + 1,
+          timeSlot: template.timeSlot,
+          maxPlayers: template.maxPlayers,
+          isOverflow: true,
+        });
+      }
+    }
   }
 }
 
@@ -94,9 +123,13 @@ async function checkOverflowRevert(database: Awaited<ReturnType<typeof db>>) {
 
   if (!shouldRevert) return;
 
-  // Delete empty overflow slots only
+  const todayStr = formatDate(today);
+
+  // Delete empty overflow slots only — never delete future ones, since they were
+  // just created in response to demand and haven't had time to fill yet.
   let deletedCount = 0;
   for (const slot of overflowSlots) {
+    if (slot.date >= todayStr) continue; // preserve present/future overflow slots
     const slotSignups = await database
       .select()
       .from(signups)
