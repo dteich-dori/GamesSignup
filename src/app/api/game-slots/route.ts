@@ -31,7 +31,10 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
 
     const existingCourts = new Set(existing.map((g) => g.courtNumber));
 
-    // Add missing courts
+    // Add missing courts — onConflictDoNothing guards against the race
+    // condition where two concurrent page loads both try to insert the same
+    // (date, court_number). The UNIQUE index on those two columns ensures
+    // only one insert wins; the other silently no-ops.
     for (let court = 1; court <= s.courtsAvailable; court++) {
       if (!existingCourts.has(court)) {
         await database.insert(gameSlots).values({
@@ -39,7 +42,7 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
           courtNumber: court,
           timeSlot: s.defaultTimeSlot,
           maxPlayers: s.playersPerGame,
-        });
+        }).onConflictDoNothing();
       }
     }
 
