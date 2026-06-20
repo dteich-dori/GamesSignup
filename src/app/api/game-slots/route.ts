@@ -31,10 +31,7 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
 
     const existingCourts = new Set(existing.map((g) => g.courtNumber));
 
-    // Add missing courts — onConflictDoNothing guards against the race
-    // condition where two concurrent page loads both try to insert the same
-    // (date, court_number). The UNIQUE index on those two columns ensures
-    // only one insert wins; the other silently no-ops.
+    // Add missing courts
     for (let court = 1; court <= s.courtsAvailable; court++) {
       if (!existingCourts.has(court)) {
         await database.insert(gameSlots).values({
@@ -42,7 +39,7 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
           courtNumber: court,
           timeSlot: s.defaultTimeSlot,
           maxPlayers: s.playersPerGame,
-        }).onConflictDoNothing();
+        });
       }
     }
 
@@ -55,6 +52,25 @@ async function autoGenerateSlots(database: Awaited<ReturnType<typeof db>>) {
         .where(eq(signups.gameSlotId, slot.id));
       if (slotSignups.length === 0) {
         await database.delete(gameSlots).where(eq(gameSlots.id, slot.id));
+      }
+    }
+
+    // Clean up duplicate slots: if multiple rows share the same courtNumber,
+    // keep the one with signups and delete empty duplicates. Duplicates can
+    // arise from a race condition where two concurrent page loads both insert
+    // the same court before either can see the other's row.
+    const grouped = new Map<number, typeof existing>();
+    for (const slot of existing) {
+      if (!grouped.has(slot.courtNumber)) grouped.set(slot.courtNumber, []);
+      grouped.get(slot.courtNumber)!.push(slot);
+    }
+    for (const [, slots] of grouped) {
+      if (slots.length <= 1) continue;
+      for (const slot of slots) {
+        const count = await database.select().from(signups).where(eq(signups.gameSlotId, slot.id));
+        if (count.length === 0) {
+          await database.delete(gameSlots).where(eq(gameSlots.id, slot.id));
+        }
       }
     }
 

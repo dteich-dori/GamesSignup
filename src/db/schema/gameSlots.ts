@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 export const gameSlots = sqliteTable("game_slots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -9,6 +9,4 @@ export const gameSlots = sqliteTable("game_slots", {
   isLocked: integer("is_locked", { mode: "boolean" }).notNull().default(false),
   reservedCourt: text("reserved_court"),
   isOverflow: integer("is_overflow", { mode: "boolean" }).notNull().default(false),
-}, (t) => [
-  uniqueIndex("game_slots_date_court_idx").on(t.date, t.courtNumber),
-]);
+});

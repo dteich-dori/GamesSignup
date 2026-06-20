@@ -81,10 +81,22 @@ export async function POST(request: NextRequest) {
 
   // --- Overflow: check if ALL slots on this date are now full ---
   const allDaySlots = await database.select().from(gameSlots).where(eq(gameSlots.date, slot.date));
-  let allFull = true;
+
+  // Deduplicate by courtNumber — keep the fullest slot per court position so
+  // that empty duplicate rows (from a rare concurrent-insert race) don't make
+  // the day appear to have open spots when every real game is actually full.
+  const bestByCourtNumber = new Map<number, { slot: typeof allDaySlots[0]; signupCount: number }>();
   for (const daySlot of allDaySlots) {
     const count = await database.select().from(signups).where(eq(signups.gameSlotId, daySlot.id));
-    if (count.length < daySlot.maxPlayers) {
+    const existing = bestByCourtNumber.get(daySlot.courtNumber);
+    if (!existing || count.length > existing.signupCount) {
+      bestByCourtNumber.set(daySlot.courtNumber, { slot: daySlot, signupCount: count.length });
+    }
+  }
+
+  let allFull = true;
+  for (const { slot: daySlot, signupCount } of bestByCourtNumber.values()) {
+    if (signupCount < daySlot.maxPlayers) {
       allFull = false;
       break;
     }
