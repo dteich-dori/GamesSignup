@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
     success: true,
     emailsSent: emailResult.sent,
     smsSent: smsResult.smsSent,
+    smsTransport: smsResult.smsTransport,
     warnings: warnings.length > 0 ? warnings : undefined,
   });
 }

@@ -138,6 +138,7 @@ export interface BulkResult {
   errors: string[];
   skipped: string[];
   recipients: string[]; // names of successfully sent
+  smsTransport?: "twilio" | "gateway";
 }
 
 export async function sendBulkEmails(
@@ -188,6 +189,7 @@ export async function sendBulkSms(
   const result: BulkResult = { sent: 0, smsSent: 0, errors: [], skipped: [], recipients: [] };
 
   const useTwilio = !validateTwilioConfig();
+  result.smsTransport = useTwilio ? "twilio" : "gateway";
 
   if (!useTwilio) {
     const configError = validateEmailConfig();

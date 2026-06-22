@@ -193,7 +193,7 @@ export default function CommunicationsPage() {
       }
 
       let msg = `Sent: ${data.emailsSent} email(s)`;
-      if (data.smsSent > 0) msg += `, ${data.smsSent} text(s)`;
+      if (data.smsSent > 0) msg += `, ${data.smsSent} text(s) via ${data.smsTransport === "twilio" ? "Twilio" : "carrier gateway"}`;
       msg += ".";
       if (data.warnings?.length) {
         msg += `\n\nWarnings:\n${data.warnings.join("\n")}`;
