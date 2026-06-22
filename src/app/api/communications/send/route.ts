@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/getDb";
 import { players, settings, emailLog, activityLog } from "@/db/schema";
 import { eq, and, gt, isNotNull, ne, inArray } from "drizzle-orm";
-import { sendBulkEmails, sendBulkSms, validateEmailConfig, hasSmsCapability, type Recipient, type SmsRecipient } from "@/lib/email";
+import { sendBulkEmails, sendBulkSms, validateEmailConfig, hasSmsCapability, type Recipient, type SmsRecipient, type BulkResult } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
   const emailResult = await sendBulkEmails(emailRecipients, subject, emailBody, fromName, replyTo);
 
   // Send SMS
-  let smsResult = { sent: 0, smsSent: 0, errors: [] as string[], skipped: [] as string[], recipients: [] as string[] };
+  let smsResult: BulkResult = { sent: 0, smsSent: 0, errors: [], skipped: [], recipients: [] };
   if (smsRecipients.length > 0) {
     smsResult = await sendBulkSms(smsRecipients, emailBody, fromName);
   }
