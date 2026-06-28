@@ -60,6 +60,7 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Reports</h1>
         <div className="flex gap-3">
+          <Link href="/twilio-cost" className="text-sm text-primary hover:underline">Twilio Cost</Link>
           <Link href="/setup" className="text-sm text-primary hover:underline">Setup</Link>
           <Link href="/log" className="text-sm text-primary hover:underline">Activity Log</Link>
           <Link href="/" className="text-sm text-primary hover:underline">Games</Link>
