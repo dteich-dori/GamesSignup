@@ -23,6 +23,33 @@ interface CostData {
 
 const LS_KEY = "gs-twilio-cost-rates-v1";
 const LS_DATE_KEY = "gs-twilio-cost-startdate-v1";
+const LS_WINTER_START_KEY = "gs-twilio-cost-winter-start-v1";
+const LS_WINTER_END_KEY = "gs-twilio-cost-winter-end-v1";
+
+// Default winter exclusion window = the TennisScheduler season. Months that
+// fall inside this window are billed to the Scheduler app, not here.
+const DEFAULT_WINTER_START = "2026-09-14";
+const DEFAULT_WINTER_END = "2027-05-30";
+
+const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.4375;
+
+function monthsInBurdenWindow(
+  twilioEnabledIso: string,
+  endIso: string,
+  winterStartIso: string,
+  winterEndIso: string
+): number {
+  const start = new Date(twilioEnabledIso + "T00:00:00").getTime();
+  const end = new Date(endIso + "T23:59:59").getTime();
+  const winterStart = new Date(winterStartIso + "T00:00:00").getTime();
+  const winterEnd = new Date(winterEndIso + "T23:59:59").getTime();
+  const totalMs = Math.max(0, end - start);
+  const overlapMs = Math.max(
+    0,
+    Math.min(end, winterEnd) - Math.max(start, winterStart)
+  );
+  return Math.max(0, (totalMs - overlapMs) / MS_PER_MONTH);
+}
 
 interface Rates {
   brandRegistration: number;
@@ -51,6 +78,8 @@ const fmt$ = (n: number) =>
 
 export default function TwilioCostPage() {
   const [startDate, setStartDate] = useState<string>(DEFAULT_START_DATE);
+  const [winterStart, setWinterStart] = useState<string>(DEFAULT_WINTER_START);
+  const [winterEnd, setWinterEnd] = useState<string>(DEFAULT_WINTER_END);
   const [data, setData] = useState<CostData | null>(null);
   const [error, setError] = useState("");
   const [rates, setRates] = useState<Rates>(DEFAULT_RATES);
@@ -63,10 +92,23 @@ export default function TwilioCostPage() {
       if (raw) setRates((prev) => ({ ...prev, ...(JSON.parse(raw) as Partial<Rates>) }));
       const d = localStorage.getItem(LS_DATE_KEY);
       if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setStartDate(d);
+      const ws = localStorage.getItem(LS_WINTER_START_KEY);
+      if (ws && /^\d{4}-\d{2}-\d{2}$/.test(ws)) setWinterStart(ws);
+      const we = localStorage.getItem(LS_WINTER_END_KEY);
+      if (we && /^\d{4}-\d{2}-\d{2}$/.test(we)) setWinterEnd(we);
     } catch {
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_WINTER_START_KEY, winterStart);
+      localStorage.setItem(LS_WINTER_END_KEY, winterEnd);
+    } catch {
+      /* ignore */
+    }
+  }, [winterStart, winterEnd]);
 
   useEffect(() => {
     try {
@@ -107,16 +149,39 @@ export default function TwilioCostPage() {
 
   const oneTime = rates.brandRegistration + rates.campaignRegistration;
   const monthly = rates.phoneNumberMonthly + rates.campaignMonthly;
-  const monthsElapsed = data?.monthsElapsed ?? 0;
-  const accruedMonthly = monthly * monthsElapsed;
+
+  // Total months since Twilio was enabled, and the GamesSignup-burdened
+  // portion (excluding the winter window which belongs to the Scheduler).
+  const totalMonthsElapsed = data?.monthsElapsed ?? 0;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const burdenMonthsElapsed =
+    /^\d{4}-\d{2}-\d{2}$/.test(startDate) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(winterStart) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(winterEnd)
+      ? monthsInBurdenWindow(startDate, todayIso, winterStart, winterEnd)
+      : totalMonthsElapsed;
+
+  const accruedMonthly = monthly * burdenMonthsElapsed;
   const segments = (data?.estimatedSmsSegments ?? 0) * rates.avgSegmentsPerText;
   const perSmsAll = rates.perSmsTwilio + rates.perSmsCarrierFee;
   const accruedSms = segments * perSmsAll;
   const totalAccrued = oneTime + accruedMonthly + accruedSms;
 
-  const projectedMonthly = monthly * 12;
-  const projectedSms = segments > 0 && monthsElapsed > 0
-    ? (segments / monthsElapsed) * 12 * perSmsAll
+  // Annual projection: 12 months minus the winter window length (cycled).
+  const winterLengthMonths =
+    /^\d{4}-\d{2}-\d{2}$/.test(winterStart) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(winterEnd)
+      ? Math.max(
+          0,
+          (new Date(winterEnd + "T23:59:59").getTime() -
+            new Date(winterStart + "T00:00:00").getTime()) /
+            MS_PER_MONTH
+        )
+      : 0;
+  const projectedBurdenMonths = Math.max(0, 12 - winterLengthMonths);
+  const projectedMonthly = monthly * projectedBurdenMonths;
+  const projectedSms = segments > 0 && burdenMonthsElapsed > 0
+    ? (segments / burdenMonthsElapsed) * projectedBurdenMonths * perSmsAll
     : 0;
   const projectedTotal = oneTime + projectedMonthly + projectedSms;
 
@@ -132,8 +197,10 @@ export default function TwilioCostPage() {
       </div>
 
       <p className="text-sm text-muted mb-4">
-        Estimates accrued and projected Twilio cost: setup, monthly, and
-        per-segment fees. SMS counts come from the email log; adjust the
+        Estimates GamesSignup&apos;s share of the (shared) Twilio cost.
+        The account is shared with the Scheduler app: months that fall
+        within the Scheduler&apos;s winter window are billed there, not
+        here. Setup + monthly fees default to GamesSignup. Adjust the
         &ldquo;Twilio enabled date&rdquo; so only sends after Twilio went
         live are counted (earlier sends used the free carrier gateway).
         Per-segment counts assume an average of{" "}
@@ -147,16 +214,35 @@ export default function TwilioCostPage() {
         </div>
       )}
 
-      {/* Twilio enabled date */}
-      <section className="border border-border rounded-lg p-4 mb-6">
-        <label className="flex items-center gap-3 text-sm">
-          <span className="font-semibold">Twilio enabled date:</span>
+      {/* Date windows */}
+      <section className="border border-border rounded-lg p-4 mb-6 space-y-3">
+        <label className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="font-semibold w-56">Twilio enabled date:</span>
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             className="border border-border rounded px-2 py-1 text-sm"
           />
+        </label>
+        <label className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="font-semibold w-56">Scheduler winter window:</span>
+          <input
+            type="date"
+            value={winterStart}
+            onChange={(e) => setWinterStart(e.target.value)}
+            className="border border-border rounded px-2 py-1 text-sm"
+          />
+          <span className="text-muted">to</span>
+          <input
+            type="date"
+            value={winterEnd}
+            onChange={(e) => setWinterEnd(e.target.value)}
+            className="border border-border rounded px-2 py-1 text-sm"
+          />
+          <span className="text-xs text-muted">
+            ({winterLengthMonths.toFixed(1)} months excluded — burdened to Scheduler)
+          </span>
         </label>
       </section>
 
@@ -187,14 +273,15 @@ export default function TwilioCostPage() {
           <table className="w-full text-sm">
             <tbody>
               <Row label="Twilio enabled" value={data.startDate} />
-              <Row label="Months elapsed" value={data.monthsElapsed.toFixed(1)} />
+              <Row label="Total months elapsed" value={data.monthsElapsed.toFixed(1)} />
+              <Row label="GamesSignup-burdened months (excluding winter)" value={burdenMonthsElapsed.toFixed(1)} bold />
               <Row label="SMS-only batch recipients" value={String(data.smsOnlyCount)} />
               <Row label="Email+Text batch recipients" value={String(data.dualSendCount)} />
               <Row label="Estimated SMS recipients (sum)" value={String(data.estimatedSmsSegments)} bold />
               <Row label={`× avg segments/text (${rates.avgSegmentsPerText})`} value={segments.toFixed(1)} />
               <tr><td colSpan={2}><hr className="my-2 border-border" /></td></tr>
               <Row label="One-time setup fees" value={fmt$(oneTime)} />
-              <Row label={`Monthly fees × ${data.monthsElapsed.toFixed(1)} months`} value={fmt$(accruedMonthly)} />
+              <Row label={`Monthly fees × ${burdenMonthsElapsed.toFixed(1)} burden months`} value={fmt$(accruedMonthly)} />
               <Row label={`SMS segments × ${fmt$(perSmsAll)}`} value={fmt$(accruedSms)} />
               <tr><td colSpan={2}><hr className="my-2 border-border" /></td></tr>
               <Row label="Total accrued" value={fmt$(totalAccrued)} bold large />
@@ -207,15 +294,15 @@ export default function TwilioCostPage() {
 
       {/* Projected */}
       <section className="border border-border rounded-lg p-4 mb-6">
-        <h2 className="font-semibold mb-3">Projected (12 months from Twilio enabled date)</h2>
+        <h2 className="font-semibold mb-3">Projected annual (GamesSignup&apos;s share)</h2>
         {data ? (
           <table className="w-full text-sm">
             <tbody>
               <Row label="One-time setup fees" value={fmt$(oneTime)} />
-              <Row label="Monthly fees × 12 months" value={fmt$(projectedMonthly)} />
-              <Row label="Projected SMS cost (annualised from current usage)" value={fmt$(projectedSms)} />
+              <Row label={`Monthly fees × ${projectedBurdenMonths.toFixed(1)} non-winter months`} value={fmt$(projectedMonthly)} />
+              <Row label="Projected SMS cost (annualised from current burden usage)" value={fmt$(projectedSms)} />
               <tr><td colSpan={2}><hr className="my-2 border-border" /></td></tr>
-              <Row label="Projected 12-month total" value={fmt$(projectedTotal)} bold large />
+              <Row label="Projected annual total" value={fmt$(projectedTotal)} bold large />
             </tbody>
           </table>
         ) : (
