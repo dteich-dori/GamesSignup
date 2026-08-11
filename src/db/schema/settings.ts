@@ -39,4 +39,6 @@ export const settings = sqliteTable("settings", {
   timeSlotEarliestStart: text("time_slot_earliest_start").notNull().default("08:00"),
   timeSlotLatestStart: text("time_slot_latest_start").notNull().default("10:00"),
   timeSlotDurationMinutes: integer("time_slot_duration_minutes").notNull().default(120),
+  // JSON array of {start: "YYYY-MM-DD", end: "YYYY-MM-DD", label: string}
+  lockoutDates: text("lockout_dates").notNull().default("[]"),
 });

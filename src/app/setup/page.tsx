@@ -47,6 +47,7 @@ interface Settings {
   timeSlotEarliestStart: string;
   timeSlotLatestStart: string;
   timeSlotDurationMinutes: number;
+  lockoutDates: string;
 }
 
 interface Player {
@@ -507,6 +508,70 @@ export default function SetupPage() {
               </div>
             </div>
           )}
+
+          {/* Lockout Dates */}
+          <div className="border border-border rounded-lg p-4">
+            <h3 className="text-sm font-semibold mb-3">Lockout Dates (court closed / tournament)</h3>
+            <p className="text-xs text-muted mb-3">These date ranges will show as red columns with a "WOTC CLOSED FOR TOURNAMENT" banner on the signup board. Dates are in YYYY-MM-DD format.</p>
+            {(() => {
+              let ranges: { start: string; end: string; label: string }[] = [];
+              try { ranges = JSON.parse(settings.lockoutDates || "[]"); } catch { ranges = []; }
+              return (
+                <div className="space-y-2">
+                  {ranges.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2 flex-wrap">
+                      <input
+                        type="date"
+                        value={r.start}
+                        onChange={(e) => {
+                          const updated = [...ranges];
+                          updated[i] = { ...updated[i], start: e.target.value };
+                          setSettings({ ...settings, lockoutDates: JSON.stringify(updated) });
+                        }}
+                        className="border border-border rounded px-2 py-1 text-sm"
+                      />
+                      <span className="text-sm text-muted">to</span>
+                      <input
+                        type="date"
+                        value={r.end}
+                        onChange={(e) => {
+                          const updated = [...ranges];
+                          updated[i] = { ...updated[i], end: e.target.value };
+                          setSettings({ ...settings, lockoutDates: JSON.stringify(updated) });
+                        }}
+                        className="border border-border rounded px-2 py-1 text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={r.label}
+                        placeholder="Banner text"
+                        onChange={(e) => {
+                          const updated = [...ranges];
+                          updated[i] = { ...updated[i], label: e.target.value };
+                          setSettings({ ...settings, lockoutDates: JSON.stringify(updated) });
+                        }}
+                        className="border border-border rounded px-2 py-1 text-sm flex-1 min-w-48"
+                      />
+                      <button
+                        onClick={() => {
+                          const updated = ranges.filter((_, idx) => idx !== i);
+                          setSettings({ ...settings, lockoutDates: JSON.stringify(updated) });
+                        }}
+                        className="text-danger text-sm px-2 py-1 hover:bg-red-50 rounded"
+                      >✕</button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const updated = [...ranges, { start: "", end: "", label: "WOTC CLOSED FOR TOURNAMENT" }];
+                      setSettings({ ...settings, lockoutDates: JSON.stringify(updated) });
+                    }}
+                    className="text-sm text-primary hover:underline mt-1"
+                  >+ Add date range</button>
+                </div>
+              );
+            })()}
+          </div>
 
           <div className="flex items-center gap-4">
             <button

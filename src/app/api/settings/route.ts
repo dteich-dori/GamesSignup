@@ -75,6 +75,7 @@ export async function PUT(request: NextRequest) {
     "dropdownResetSeconds",
     "weatherZip", "weatherLat", "weatherLon", "weatherEnabled",
     "timeSlotEarliestStart", "timeSlotLatestStart", "timeSlotDurationMinutes",
+    "lockoutDates",
   ];
 
   for (const field of allowedFields) {

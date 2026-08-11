@@ -73,6 +73,7 @@ interface Settings {
   timeSlotEarliestStart: string;
   timeSlotLatestStart: string;
   timeSlotDurationMinutes: number;
+  lockoutDates?: string;
 }
 
 export default function Home() {
@@ -279,6 +280,24 @@ export default function Home() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // Lockout dates: parse JSON from settings, build a Set of locked YYYY-MM-DD strings
+  const lockoutRanges: { start: string; end: string; label: string }[] = (() => {
+    try { return JSON.parse(settings?.lockoutDates || "[]"); } catch { return []; }
+  })();
+  const lockedDates = new Set<string>();
+  const lockoutLabelMap = new Map<string, string>();
+  for (const range of lockoutRanges) {
+    if (!range.start || !range.end) continue;
+    const cur = new Date(range.start + "T12:00:00");
+    const end = new Date(range.end + "T12:00:00");
+    while (cur <= end) {
+      const key = cur.toISOString().slice(0, 10);
+      lockedDates.add(key);
+      lockoutLabelMap.set(key, range.label || "WOTC CLOSED FOR TOURNAMENT");
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+
   const formatDayDate = (dateStr: string) => {
     const date = new Date(dateStr + "T12:00:00");
     const day = date.toLocaleDateString("en-US", { weekday: "short" });
@@ -440,16 +459,23 @@ export default function Home() {
               <td className="border border-border p-1 text-sm font-bold text-foreground"></td>
               {dates.map((d) => {
                 const { day, monthDay } = formatDayDate(d);
+                const isLocked = lockedDates.has(d);
+                const lockLabel = lockoutLabelMap.get(d);
                 return (
                   <td key={d} className={`border-l-2 border-r-2 border-t-2 border-border p-1 text-center ${
-                    isToday(d) ? "bg-primary text-white" : "bg-yellow-100"
+                    isLocked ? "bg-red-200" : isToday(d) ? "bg-primary text-white" : "bg-yellow-100"
                   }`}>
-                    <div className="text-sm font-extrabold text-foreground leading-tight" style={isToday(d) ? { color: "white" } : {}}>
+                    <div className="text-sm font-extrabold text-foreground leading-tight" style={isToday(d) && !isLocked ? { color: "white" } : {}}>
                       {day}
                     </div>
-                    <div className="text-xs font-bold text-foreground leading-tight" style={isToday(d) ? { color: "white" } : {}}>
+                    <div className="text-xs font-bold text-foreground leading-tight" style={isToday(d) && !isLocked ? { color: "white" } : {}}>
                       {monthDay}
                     </div>
+                    {isLocked && (
+                      <div className="text-xs font-bold text-red-800 leading-tight mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis" title={lockLabel}>
+                        {lockLabel}
+                      </div>
+                    )}
                   </td>
                 );
               })}
@@ -484,7 +510,7 @@ export default function Home() {
                       ? `Court reserved${slot?.reservedCourt ? ` (${slot.reservedCourt})` : ""} on ${d} — uncheck to release`
                       : `Mark a court as reserved for ${d}, then enter the court number in the box to the right`;
                     return (
-                      <td key={d} className="border-l-2 border-r-2 border-t-2 border-border border-b border-border p-0 text-center bg-gray-50">
+                      <td key={d} className={`border-l-2 border-r-2 border-t-2 border-border border-b border-border p-0 text-center ${lockedDates.has(d) ? "bg-red-100" : "bg-gray-50"}`}>
                         {slot && (
                           <div className="flex items-center justify-center gap-1 px-1 py-1.5">
                             <input
@@ -533,7 +559,7 @@ export default function Home() {
                     );
                     const valueInOptions = timeOptions.some((o) => o.value === timeValue);
                     return (
-                      <td key={d} className="border-l-2 border-r-2 border-border border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground">
+                      <td key={d} className={`border-l-2 border-r-2 border-border border-t border-b border-border p-0 text-xs text-center font-semibold text-foreground ${lockedDates.has(d) ? "bg-red-100" : ""}`}>
                         {slot ? (
                           <select
                             value={valueInOptions ? timeValue : ""}
@@ -615,6 +641,7 @@ export default function Home() {
                         <td
                           key={d}
                           className={`border-l-2 border-r-2 border-border border-t border-b border-border ${isLastRow ? "border-b-2" : ""} p-0 text-center ${
+                            lockedDates.has(d) ? "bg-red-100" :
                             datePast ? "bg-gray-100 opacity-60" :
                             isFull ? "bg-success-bg/40" :
                             ""
