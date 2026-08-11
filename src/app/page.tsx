@@ -605,7 +605,11 @@ export default function Home() {
                       const isThisMe = signup?.playerId === selectedPlayerId;
                       const datePast = isPast(d);
                       const isEmptySlot = !signup;
-                      const canJoin = isEmptySlot && !isFull && !datePast && selectedPlayerId && !isPlayerSignedUp;
+                      const priorCourtNum = courtIdx > 0 ? courtNumbers[courtIdx - 1] : null;
+                      const priorSlot = priorCourtNum != null ? slotMap.get(`${d}-${priorCourtNum}`) : null;
+                      const priorGameFull = priorSlot ? priorSlot.signups.length >= priorSlot.maxPlayers : true;
+                      const blockedByPriorGame = courtIdx > 0 && !priorGameFull;
+                      const canJoin = isEmptySlot && !isFull && !datePast && selectedPlayerId && !isPlayerSignedUp && !blockedByPriorGame;
 
                       return (
                         <td
@@ -640,6 +644,16 @@ export default function Home() {
                             >
                               +
                             </button>
+                          ) : blockedByPriorGame && isEmptySlot && !isFull && !datePast && selectedPlayerId && !isPlayerSignedUp ? (
+                            <div
+                              className="relative group w-full h-full px-0.5 py-1 flex items-center justify-center cursor-not-allowed"
+                            >
+                              <span className="text-lg font-extrabold text-muted opacity-30">+</span>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-20 hidden group-hover:block w-44 rounded bg-gray-800 text-white text-xs text-center px-2 py-1 shadow-lg pointer-events-none">
+                                Game {courtIdx} must be full before joining Game {courtIdx + 1}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+                              </div>
+                            </div>
                           ) : (
                             <div className="px-0.5 py-1 text-sm text-transparent select-none">&nbsp;</div>
                           )}
